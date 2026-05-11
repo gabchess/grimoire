@@ -7,11 +7,40 @@ export interface Attestation {
   explorerUrl: string;
 }
 
+export type SourceType =
+  | "governance_proposal"
+  | "glossary"
+  | "x_post"
+  | "onchain_tx"
+  | "github"
+  | "docs";
+
 export interface Citation {
   proposalId: string;
   title: string;
   sourceUrl: string;
+  sourceType: SourceType;
   attestation: Attestation;
+}
+
+/**
+ * Auto-detect source type from URL when sourceType is not explicitly set.
+ * Used as a runtime fallback for citations ingested before the sourceType field existed.
+ */
+export function detectSourceType(url: string): SourceType {
+  if (url.includes("realms.today") || url.includes("snapshot.org")) {
+    return "governance_proposal";
+  }
+  if (url.includes("github.com")) {
+    return "github";
+  }
+  if (url.includes("x.com") || url.includes("twitter.com")) {
+    return "x_post";
+  }
+  if (url.includes("solana.fm") || url.includes("explorer.solana.com")) {
+    return "onchain_tx";
+  }
+  return "docs";
 }
 
 export interface Message {
@@ -38,6 +67,7 @@ export const MARINADE_DEMO_MESSAGES: Message[] = [
         proposalId: "JIP-7",
         title: "Validator Delegation Strategy",
         sourceUrl: "https://realms.today/dao/marinade/proposal/JIP-7",
+        sourceType: "governance_proposal" as SourceType,
         attestation: {
           txHash:
             "5K3pBuQRmNvJXaFhZ2yLkDwMoEsP4cY8tGnHiVjXbRqA9uWdFg3rNsELpYoKmT6",
@@ -49,6 +79,7 @@ export const MARINADE_DEMO_MESSAGES: Message[] = [
         proposalId: "JIP-11",
         title: "Stake Pool Rebalancing Automation",
         sourceUrl: "https://realms.today/dao/marinade/proposal/JIP-11",
+        sourceType: "governance_proposal" as SourceType,
         attestation: {
           txHash:
             "3mRtUwXoLpZ8fGvHkNqAsBcDjEiY7gMnPrTuVwZaQxFe2sKhCyBdJ4nLmWoIvRp",
@@ -60,6 +91,7 @@ export const MARINADE_DEMO_MESSAGES: Message[] = [
         proposalId: "JIP-22",
         title: "Single-Validator Concentration Cap (10%)",
         sourceUrl: "https://realms.today/dao/marinade/proposal/JIP-22",
+        sourceType: "governance_proposal" as SourceType,
         attestation: {
           txHash:
             "7zPkAqWxSdBtYnMhRcGfJiLoEuVpNrHkOsTmCuZwXbQj5yDeFgLnIaKvEpWoMsJt",
@@ -86,6 +118,7 @@ export const MARINADE_DEMO_MESSAGES: Message[] = [
         proposalId: "JIP-19",
         title: "Emergency Unbond Conditions and Tier Framework",
         sourceUrl: "https://realms.today/dao/marinade/proposal/JIP-19",
+        sourceType: "governance_proposal" as SourceType,
         attestation: {
           txHash:
             "9aNbCpDqErFsGtHuIvJwKxLyMzNaObPcQdReSfTgUhViWjXkYlZmAnBoCpDqErFs",
@@ -97,6 +130,7 @@ export const MARINADE_DEMO_MESSAGES: Message[] = [
         proposalId: "JIP-24",
         title: "Q4 2024 MEV Extraction Incident: Validator Removal",
         sourceUrl: "https://realms.today/dao/marinade/proposal/JIP-24",
+        sourceType: "governance_proposal" as SourceType,
         attestation: {
           txHash:
             "2fGhIjKlMnOpQrStUvWxYzAaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUu",
@@ -123,6 +157,7 @@ export const MARINADE_DEMO_MESSAGES: Message[] = [
         proposalId: "JIP-15",
         title: "Treasury Reserve Allocation and Rebalancing Policy",
         sourceUrl: "https://realms.today/dao/marinade/proposal/JIP-15",
+        sourceType: "governance_proposal" as SourceType,
         attestation: {
           txHash:
             "4hJkLmNoPqRsTuVwXyZaAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsSiTtUuVv",
@@ -134,6 +169,7 @@ export const MARINADE_DEMO_MESSAGES: Message[] = [
         proposalId: "JIP-20",
         title: "Temporary SOL Bucket Increase for Validator Expansion",
         sourceUrl: "https://realms.today/dao/marinade/proposal/JIP-20",
+        sourceType: "governance_proposal" as SourceType,
         attestation: {
           txHash:
             "6iKlMnOpQrStUvWxYzAaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWw",

@@ -1,93 +1,210 @@
+"use client";
+
 import Link from "next/link";
 import BindBrainForm from "@/components/BindBrainForm";
+import { LogoLockup } from "@/components/Logo";
+import {
+  X as XIcon,
+  GitBranch,
+  Vote,
+  FileText,
+  Link2,
+  BookOpen,
+} from "lucide-react";
+
+const SOURCE_TILES = [
+  {
+    label: "X posts",
+    icon: XIcon,
+    color: "#1DA1F2",
+  },
+  {
+    label: "Repos",
+    icon: GitBranch,
+    color: "#E6EDF3",
+  },
+  {
+    label: "Proposals",
+    icon: Vote,
+    color: "#9945FF",
+  },
+  {
+    label: "Docs",
+    icon: FileText,
+    color: "#FFB800",
+  },
+  {
+    label: "Transactions",
+    icon: Link2,
+    color: "#14F195",
+  },
+  {
+    label: "Glossary",
+    icon: BookOpen,
+    color: "#64B5F6",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-void text-text-primary">
       {/* Nav */}
-      <nav className="border-b border-slate-800 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <span className="text-lg font-semibold text-indigo-400">Oblivion</span>
-          <Link
-            href="/dao/marinade"
-            className="text-sm text-slate-400 hover:text-white transition-colors"
-          >
-            Try demo
-          </Link>
+      <nav
+        role="navigation"
+        aria-label="Main navigation"
+        className="sticky top-0 z-50 border-b border-border-subtle backdrop-blur-md bg-void/80"
+      >
+        <div className="max-w-[1120px] mx-auto px-6 py-3 flex items-center justify-between">
+          <LogoLockup />
+          <div className="flex items-center gap-4">
+            <Link
+              href="/dao/marinade"
+              className="text-sm text-text-secondary hover:text-text-primary transition-colors duration-[120ms]"
+            >
+              Try demo
+            </Link>
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-text-secondary hover:text-text-primary transition-colors duration-[120ms]"
+            >
+              GitHub
+            </a>
+          </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="max-w-5xl mx-auto px-6 pt-24 pb-16">
-        <h1 className="text-5xl font-bold tracking-tight leading-tight text-white">
-          Oblivion: the company brain<br />
-          <span className="text-indigo-400">for Solana DAOs</span>
-        </h1>
+      <section
+        id="hero"
+        className="max-w-[1120px] mx-auto px-6 pt-[120px] pb-16"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          {/* Left: 7 cols */}
+          <div className="lg:col-span-7">
+            <h1 className="text-[2.5rem] lg:text-[4rem] font-bold leading-[1.05] tracking-[-0.03em] text-text-primary animate-entrance">
+              Your company brain,{" "}
+              <span className="text-gradient">permanently onchain.</span>
+            </h1>
 
-        <p className="mt-6 text-xl text-slate-300 max-w-2xl leading-relaxed">
-          Drop your governance forum URL. Within 5 minutes, get an AI agent
-          that answers any question about your DAO&apos;s decision history,
-          with citations linking to specific governance proposals and onchain
-          Solana attestations proving the source document.
-        </p>
-
-        {/* Killer feature cards */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-          <div className="rounded-xl border border-indigo-800 bg-indigo-950/40 p-6">
-            <h3 className="font-semibold text-indigo-300 text-lg">Every answer grounded</h3>
-            <p className="mt-2 text-slate-400 text-sm leading-relaxed">
-              Each response cites the specific proposals and forum threads it
-              drew from. No confident guessing. No context collapse.
+            <p className="mt-6 text-[1.125rem] text-text-secondary leading-[1.6] max-w-[520px] animate-entrance [animation-delay:100ms]">
+              Drop your X handle, repos, governance forum, and docs. In minutes,
+              get an AI agent that answers any question about your organization,
+              citing the exact source, with every answer attested on Solana.
             </p>
-          </div>
-          <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-6">
-            <h3 className="font-semibold text-slate-200 text-lg">Every source verifiable</h3>
-            <p className="mt-2 text-slate-400 text-sm leading-relaxed">
-              Source documents are SHA-256 hashed and written to Solana at
-              index time. Anyone can verify the agent did not drift from
-              the original.
-            </p>
-          </div>
-        </div>
 
-        {/* Bind brain form */}
-        <div className="mt-14">
-          <h2 className="text-lg font-medium text-slate-200 mb-3">
-            Bind a brain to your DAO
-          </h2>
-          <BindBrainForm />
-          <p className="mt-2 text-xs text-slate-500">
-            Indexing takes 3 to 5 minutes. Pre-indexed demo available below.
-          </p>
-        </div>
+            <div className="mt-8 flex flex-wrap items-center gap-3 animate-entrance [animation-delay:200ms]">
+              <a
+                href="#bind-brain"
+                className="inline-flex items-center gap-2 rounded-xl bg-accent-purple px-8 py-4 text-sm font-medium text-white transition-all duration-[120ms] hover:bg-accent-purple-hover hover:shadow-[0_0_24px_rgba(153,69,255,0.3)] focus-visible:outline-2 focus-visible:outline-accent-purple focus-visible:outline-offset-2"
+              >
+                Build your brain
+              </a>
+              <Link
+                href="/dao/marinade"
+                aria-label="See Marinade demo"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border-default bg-transparent px-4 py-3 text-sm text-text-secondary transition-all duration-[120ms] hover:border-border-strong hover:text-text-primary focus-visible:outline-2 focus-visible:outline-accent-purple focus-visible:outline-offset-2 group"
+              >
+                See demo
+                <span
+                  aria-hidden="true"
+                  className="transition-transform duration-[120ms] group-hover:translate-x-0.5"
+                >
+                  -&gt;
+                </span>
+              </Link>
+            </div>
+          </div>
 
-        {/* Demo CTA */}
-        <div className="mt-10">
-          <Link
-            href="/dao/marinade"
-            className="inline-flex items-center gap-2 rounded-lg border border-indigo-700 bg-indigo-950/60 px-6 py-3 text-sm font-medium text-indigo-300 hover:bg-indigo-900/60 hover:text-indigo-200 transition-colors"
+          {/* Right: 5 cols — source type tiles */}
+          <div
+            className="lg:col-span-5"
+            role="presentation"
+            aria-hidden="true"
           >
-            Try Marinade demo
-            <span aria-hidden="true">→</span>
-          </Link>
+            <div className="grid grid-cols-3 gap-3">
+              {SOURCE_TILES.map((tile, i) => {
+                const Icon = tile.icon;
+                const delay = 350 + i * 50;
+                return (
+                  <div
+                    key={tile.label}
+                    className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border-subtle bg-elevated h-20 lg:h-24 cursor-default transition-all duration-[200ms] hover:scale-[1.03] animate-entrance"
+                    style={{
+                      animationDelay: `${delay}ms`,
+                      transitionTimingFunction: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+                    }}
+                    onMouseEnter={(e) => {
+                      const el = e.currentTarget;
+                      el.style.borderColor = tile.color + "66";
+                      el.style.backgroundColor = tile.color + "12";
+                    }}
+                    onMouseLeave={(e) => {
+                      const el = e.currentTarget;
+                      el.style.borderColor = "";
+                      el.style.backgroundColor = "";
+                    }}
+                  >
+                    <Icon
+                      size={24}
+                      style={{ color: tile.color }}
+                      aria-hidden="true"
+                    />
+                    <span
+                      className="text-[0.6875rem] font-medium tracking-[0.02em] text-text-tertiary"
+                    >
+                      {tile.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Gradient divider */}
+      <div
+        className="h-px w-full"
+        style={{
+          background: "linear-gradient(90deg, transparent, #9945FF, #14F195, transparent)",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Bind Brain section */}
+      <section id="bind-brain" className="max-w-[1120px] mx-auto px-6 py-[120px]">
+        <div className="max-w-[640px]">
+          <h2 className="text-[2rem] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+            Feed your brain
+          </h2>
+          <p className="mt-3 text-[0.8125rem] text-text-secondary leading-[1.6]">
+            Add your sources. One is enough to start. More sources, sharper answers.
+          </p>
+          <div className="mt-8">
+            <BindBrainForm />
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="max-w-5xl mx-auto px-6 py-12 border-t border-slate-800 mt-12">
-        <p className="text-xs text-slate-500 leading-relaxed">
-          Solana attestations make hallucination plausibility removed structurally.
-          Built for{" "}
+      <footer className="max-w-[1120px] mx-auto px-6 py-12 border-t border-border-subtle">
+        <p className="text-[0.6875rem] text-text-tertiary leading-relaxed">
+          Solana attestations make hallucination structurally impossible. Built for{" "}
           <a
             href="https://frontier.colosseum.org"
-            className="underline hover:text-slate-300"
+            className="underline hover:text-text-secondary transition-colors duration-[120ms]"
             target="_blank"
             rel="noopener noreferrer"
           >
             Colosseum Frontier 2026
           </a>
           .{" "}
-          <a href="#" className="underline hover:text-slate-300">
+          <a
+            href="https://github.com"
+            className="underline hover:text-text-secondary transition-colors duration-[120ms]"
+          >
             GitHub
           </a>
         </p>

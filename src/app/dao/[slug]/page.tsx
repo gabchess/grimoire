@@ -1,5 +1,8 @@
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { MARINADE_DEMO_MESSAGES } from "@/data/marinade-demo";
 import ChatInterface from "@/components/ChatInterface";
+import { LogoLockup } from "@/components/Logo";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -13,19 +16,35 @@ export default async function DAOPage({ params }: PageProps) {
   const messages = slug === "marinade" ? MARINADE_DEMO_MESSAGES : [];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
-      {/* Header */}
-      <header className="border-b border-slate-800 px-6 py-4 flex-shrink-0">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-xl font-semibold text-white">{daoName} DAO</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Powered by Oblivion: citation-grounded, onchain-verified.
-          </p>
-        </div>
+    <div className="h-screen bg-void text-text-primary flex flex-col overflow-hidden">
+      {/* Header bar */}
+      <header
+        className="flex-shrink-0 flex items-center gap-4 border-b border-border-subtle px-6"
+        style={{
+          height: "56px",
+          backgroundColor: "var(--color-elevated)",
+          position: "sticky",
+          top: 0,
+          zIndex: 40,
+        }}
+      >
+        <Link
+          href="/"
+          aria-label="Back to home"
+          className="flex items-center justify-center h-8 w-8 rounded-lg text-text-tertiary hover:text-text-primary transition-colors duration-[120ms] focus-visible:outline-2 focus-visible:outline-accent-purple focus-visible:outline-offset-2"
+        >
+          <ArrowLeft size={18} />
+        </Link>
+
+        <LogoLockup />
+
+        <h1 className="text-[1.25rem] font-semibold tracking-[-0.01em] text-text-primary">
+          {daoName}
+        </h1>
       </header>
 
-      {/* Chat */}
-      <div className="flex-1 flex flex-col max-w-3xl w-full mx-auto px-4 py-6">
+      {/* Body: sidebar + chat */}
+      <div className="flex flex-1 overflow-hidden">
         <ChatInterface initialMessages={messages} daoSlug={slug} />
       </div>
     </div>

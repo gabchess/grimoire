@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Oblivion: the company brain for Solana DAOs",
+  title: "Oblivion: your company brain, permanently onchain",
   description:
-    "Drop your governance forum URL. Get an AI agent that answers any question about your DAO's decision history, with citations and onchain Solana attestations.",
+    "Drop your X handle, repos, governance forum, and docs. Get an AI agent that answers any question about your organization, citing the exact source, with every answer attested on Solana.",
 };
 
 export default function RootLayout({

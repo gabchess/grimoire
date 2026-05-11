@@ -1,26 +1,138 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Typography */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Colors: Backgrounds */
+  --color-void: #08080A;
+  --color-surface: #0E0F11;
+  --color-elevated: #151619;
+  --color-overlay: #1B1C20;
+  --color-input: #12131A;
+
+  /* Colors: Borders */
+  --color-border-subtle: #1F2028;
+  --color-border-default: #2A2B35;
+  --color-border-strong: #3A3B48;
+  --color-border-focus: #9945FF;
+
+  /* Colors: Text */
+  --color-text-primary: #ECECEF;
+  --color-text-secondary: #A0A0AB;
+  --color-text-tertiary: #64647A;
+  --color-text-disabled: #45455A;
+
+  /* Colors: Solana Accents */
+  --color-accent-purple: #9945FF;
+  --color-accent-purple-hover: #B06AFF;
+  --color-accent-purple-muted: #9945FF26;
+  --color-accent-purple-subtle: #9945FF12;
+  --color-accent-green: #14F195;
+  --color-accent-green-hover: #3DFFA8;
+  --color-accent-green-muted: #14F19526;
+  --color-accent-green-subtle: #14F19512;
+
+  /* Colors: Status */
+  --color-status-success: #14F195;
+  --color-status-warning: #FFB800;
+  --color-status-error: #F25C54;
+
+  /* Colors: Citation Types */
+  --color-citation-governance: #9945FF;
+  --color-citation-glossary: #64B5F6;
+  --color-citation-xpost: #1DA1F2;
+  --color-citation-onchain: #14F195;
+  --color-citation-github: #E6EDF3;
+  --color-citation-docs: #FFB800;
+
+  /* Spacing */
+  --spacing-section: 120px;
+
+  /* Shadows */
+  --shadow-glow-purple: 0 0 24px rgba(153, 69, 255, 0.15);
+  --shadow-glow-green: 0 0 24px rgba(20, 241, 149, 0.12);
+
+  /* Border Radius */
+  --radius-pill: 9999px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Motion tokens (custom properties, not Tailwind @theme types) */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 400ms;
+  --duration-entrance: 600ms;
+}
+
+/* Base styles */
+html {
+  background: var(--color-void);
+  color: var(--color-text-primary);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-void);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Gradient text utility */
+.text-gradient {
+  background: linear-gradient(90deg, #9945FF, #14F195);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Keyframe animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes attestPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-entrance {
+  animation: fadeInUp 400ms var(--ease-out-expo) both;
+}
+
+.animate-attest-pulse {
+  animation: attestPulse 2s var(--ease-in-out) infinite;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
