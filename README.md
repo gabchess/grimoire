@@ -14,7 +14,7 @@ Oblivion is the per-tenant AI brain underneath all of it.
 
 You drop your sources: governance forum, GitHub repos and issues, X timelines, Discord, Notion, treasury TXs, Realms votes. An AI agent builds the index. You and your contributors ask questions in plain English. Every answer comes back with grounded citations to the exact source chunks. Every decision that matters becomes a permanent Solana attestation: query hash, source-document hashes, response hash, deterministic PDA. Notion gets edited. The attestation does not.
 
-The pattern is non-random. Three signals converged:
+Three signals converged to make this the obvious build right now:
 
 1. **Every active Solana DAO drowns in proposals.** Marinade alone has 30 proposals across three forum migrations indexed as 91 retrieval chunks. Jito, Drift, Kamino, MarginFi hit the same wall at the same time. Universal pain in 2026, not Marinade-specific.
 
@@ -51,7 +51,7 @@ User query
         → permanent onchain record of (org, source_hash, query_hash, response_hash)
 ```
 
-The two-pass cosine bias defeats the default-order cap PostgREST puts on large result sets. RLS isolation on `client_org_id` keeps tenant brains separate at the database layer, same multi-tenant pattern enterprises already trust.
+The two-pass cosine bias handles the default-order cap PostgREST puts on large result sets. RLS isolation on `client_org_id` keeps tenant brains separate at the database layer, the same multi-tenant pattern enterprises already trust.
 
 ## Stack
 
