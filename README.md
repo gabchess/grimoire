@@ -1,6 +1,6 @@
 # Oblivion
 
-The AI LLM brain for Solana companies. Drop your governance forum, repos, and docs. Oblivion builds your company brain on Postgres pgvector + Anchor, talks to it via Claude with grounded citations, and writes every important decision to Solana as a permanent onchain attestation.
+The AI knowledge brain for Solana companies. Drop in your governance forum, repos, and docs. Oblivion builds a Postgres pgvector index, answers questions via Claude with grounded citations, and writes every important decision to Solana as a permanent onchain attestation.
 
 Inspired by [Karpathy's Wiki LLM](https://x.com/karpathy/status/1769428080543207556) and Garry Tan's gbrain pattern. Built for [Colosseum Frontier 2026](https://www.colosseum.com/frontier).
 
@@ -12,9 +12,9 @@ Oblivion ingests their full governance history, embeds it in Postgres pgvector, 
 
 1. **Grounded citations** linking to the exact forum proposal chunks the answer relies on
 2. **Solana terminology context** from a 1059-term glossary served via an MCP server fork ([gabchess/oblivion-glossary](https://github.com/gabchess/oblivion-glossary))
-3. **An onchain attestation TX** on Solana devnet (mainnet-ready) recording the query, the source documents, the response, and a deterministic PDA — provable provenance for every claim the AI makes
+3. **An onchain attestation TX** on Solana devnet (mainnet-ready) recording the query, the source documents, the response, and a deterministic PDA: provable provenance for every claim the AI makes
 
-The killer feature is the attestation. Every AI answer becomes a permanent onchain record. If the AI hallucinates, the attestation lets anyone prove which source documents the answer was grounded in.
+The killer feature is the attestation. Every AI answer becomes a permanent onchain record. If the AI hallucinates, the attestation lets anyone prove which source documents the answer was grounded in and reconstruct the exact retrieval that produced it.
 
 ## Demo flow
 
@@ -22,7 +22,7 @@ The killer feature is the attestation. Every AI answer becomes a permanent oncha
 2. Oblivion retrieves the top 3 MIP-19 chunks from the Marinade governance forum + 2 supporting glossary terms
 3. Claude streams an answer with inline `[Source N]` citations
 4. An attestation TX lands on Solana devnet: signature + PDA + explorer URL appear in the UI
-5. Click the attestation pill → solana.fm shows the live onchain account with hashed inputs
+5. Click the attestation pill and solana.fm shows the live onchain account with hashed inputs
 
 Sample attestation: [3gdvdXLfmZ1wgDBZD4VKCjvk7KrHVgCdQAj2uDqJen8kBnJWRntDA967Wr5FvCouXJ7xA6kaZnUPFM7DKAhDVXia](https://solana.fm/tx/3gdvdXLfmZ1wgDBZD4VKCjvk7KrHVgCdQAj2uDqJen8kBnJWRntDA967Wr5FvCouXJ7xA6kaZnUPFM7DKAhDVXia?cluster=devnet-alpha)
 
@@ -45,15 +45,15 @@ User query
 - **Database**: Supabase Postgres with pgvector extension, RLS per `client_org_id` for multi-tenant isolation
 - **AI**: OpenAI embeddings + Anthropic Claude Sonnet 4.6 (streaming SSE)
 - **Onchain**: Anchor program on Solana devnet, deployable to mainnet without source changes
-- **Glossary MCP**: forked [@stbr/solana-glossary](https://github.com/solanabr/solana-glossary) (MIT) — 1059 terms across 14 categories with standalone MCP server (`npx solana-glossary`) any Claude Code user can connect to
+- **Glossary MCP**: forked [@stbr/solana-glossary](https://github.com/solanabr/solana-glossary) (MIT), 1059 terms across 14 categories with standalone MCP server (`npx solana-glossary`) any Claude Code user can connect to
 - **Ingest pipeline**: separate TypeScript service that pulls Discourse forum threads, chunks at ~800 tokens, embeds via OpenAI, upserts into knowledge_graph + memory_embeddings tables
 
 ## Repository layout
 
 This repo contains the frontend + RAG backend + Anchor TS client. Sibling repos handle ingest + the deployed Anchor program:
 
-- `oblivion/` — this repo. Next.js frontend, RAG API route, Anchor client, vendored glossary
-- [`oblivion-glossary/`](https://github.com/gabchess/oblivion-glossary) — the forked MCP server + 1059 Solana terms
+- `oblivion/`: this repo. Next.js frontend, RAG API route, Anchor client, vendored glossary
+- [`oblivion-glossary/`](https://github.com/gabchess/oblivion-glossary): the forked MCP server + 1059 Solana terms
 - Ingest pipeline + Anchor program source live in private repos pre-Colosseum; will open-source post-submission
 
 ## Anchor program
@@ -92,7 +92,7 @@ Required env vars (`.env.local`):
 
 For production (Vercel):
 
-- `SOLANA_KEYPAIR_JSON` — the JSON array `solana-keygen` produces (65-byte array). Vercel has no filesystem access; the keypair has to round-trip through an env var.
+- `SOLANA_KEYPAIR_JSON`: the JSON array `solana-keygen` produces (65-byte array). Vercel has no filesystem access, so the keypair has to round-trip through an env var.
 
 ## Acknowledgments
 
@@ -103,6 +103,6 @@ For production (Vercel):
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).
 
-Built for [Colosseum Frontier 2026](https://www.colosseum.com/frontier) by [gabchess](https://x.com/gabe_onchain). Submitted [date TBD] for the AI Platforms / Agents category.
+Built for [Colosseum Frontier 2026](https://www.colosseum.com/frontier) by [gabchess](https://x.com/gabe_onchain). Submitted 2026-05-11 for the AI Platforms / Agents category.
