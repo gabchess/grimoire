@@ -1,0 +1,221 @@
+{
+  "address": "B6NwW2diNY6cADxYwYsci7jRAKjDsYhG7ne6XgXPzXHm",
+  "metadata": {
+    "name": "grimoire_attestation",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "create_attestation",
+      "docs": [
+        "Create an onchain attestation for a Grimoire RAG citation.",
+        "",
+        "# Arguments",
+        "* `client_org_id` - 16-byte UUID of the DAO/org (Supabase client_org_id)",
+        "* `source_doc_hash` - SHA-256 of the indexed source document",
+        "* `query_hash` - SHA-256 of the user query (privacy-preserving)",
+        "* `response_hash` - SHA-256 of the agent response",
+        "* `source_url_short` - First 64 bytes of the source document URL"
+      ],
+      "discriminator": [
+        49,
+        24,
+        67,
+        80,
+        12,
+        249,
+        96,
+        239
+      ],
+      "accounts": [
+        {
+          "name": "attestation",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  114,
+                  105,
+                  109,
+                  111,
+                  105,
+                  114,
+                  101,
+                  45,
+                  97,
+                  116,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "client_org_id"
+              },
+              {
+                "kind": "arg",
+                "path": "source_doc_hash"
+              },
+              {
+                "kind": "arg",
+                "path": "query_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "client_org_id",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        },
+        {
+          "name": "source_doc_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "query_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "response_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "source_url_short",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GrimoireAttestation",
+      "discriminator": [
+        59,
+        112,
+        226,
+        251,
+        204,
+        85,
+        218,
+        55
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "CustomError",
+      "msg": "Custom error message"
+    }
+  ],
+  "types": [
+    {
+      "name": "GrimoireAttestation",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "client_org_id",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "source_doc_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "query_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "response_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "agent_signer",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "source_url_short",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "constants": [
+    {
+      "name": "SEED",
+      "type": "string",
+      "value": "\"anchor\""
+    }
+  ]
+}
