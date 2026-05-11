@@ -6,7 +6,7 @@ Inspired by [Karpathy's Wiki LLM](https://x.com/karpathy/status/1769428080543207
 
 ## What it does
 
-Marinade DAO has 91 governance proposals, three forum migrations, and a community that asks the same questions every week. Most DAO members never read past MIP-5.
+Marinade DAO has 30 governance proposals across three forum migrations, indexed as 91 retrieval chunks, and a community that asks the same questions every week. Most members never read past MIP-5.
 
 Oblivion ingests their full governance history, embeds it in Postgres pgvector, and serves a chat interface that answers questions like "what does MIP-19 say about validator stake auction strategy?" with:
 
