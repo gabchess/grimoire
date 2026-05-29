@@ -15,18 +15,23 @@ import {
 import { LogoLockup } from "@/components/Logo";
 import type { DecodeResult, DetectedPattern } from "@/lib/tx-decode";
 
-// ─── Example signatures (real devnet transactions) ──────────────────────────
-// These are included so the reviewer can click and see real decode output.
+// ─── Example signatures (real mainnet transactions, verified to decode) ──────
+// Click-to-try so a reviewer sees real decode output immediately.
 const EXAMPLES = [
   {
-    label: "Failed: ConstraintMut",
-    sig: "5NzmLPkJMmN2ZKGNdDPtBLcBr5uFLBqKpnqFPnuHBW4CQXK5htxkGseTrCDCGE4d5VzHWyFQQthfxG7cJ6RzX2A",
-    cluster: "devnet" as const,
+    label: "Jupiter swap: slippage (0x1771)",
+    sig: "2gF2ym5wsiLJDBmU5NjTW5pPa6e434WPHot54uVjxFKBDk1HEDd6SeA5wir57RvCo2MYf6PnqKFEQ3QQvHbbLf4q",
+    cluster: "mainnet" as const,
   },
   {
-    label: "Failed: Compute exceeded",
-    sig: "4tE7N9e1DYsVgFfXBvQf8aTbHSy3MJJAHn7pj7DwZr5eqG8zrH3rJm4u8BVgFWZH9cK2FpRkCMD5XqRLExFSbp",
-    cluster: "devnet" as const,
+    label: "Custom program error 7",
+    sig: "28HjeTHjNhF13TgBubFG4FcxVT3QEgqowXLEfvVwf9ZWJ4axPuWGmyefcy5eNwSUPuaDV4xd3D3ZeUrz8y2rCfu5",
+    cluster: "mainnet" as const,
+  },
+  {
+    label: "Custom program error 8",
+    sig: "2WwcHByhA66AYjY7MphyRUPNcSCTUWTjVVBj4sbHgwWgUDdohEpceJwBmWN2N5UXT8LBHCsJUwAW799SmDFSBNrM",
+    cluster: "mainnet" as const,
   },
 ];
 
