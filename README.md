@@ -1,124 +1,113 @@
-# Oblivion
+# Grimoire
 
-**The AI brain for Solana companies. Drop your governance, repos, X posts, and docs. Every important answer deploys onchain as a permanent attestation.**
+Verifiable onchain AI on Solana.
 
-Andrej Karpathy framed the LLM Wiki pattern in [April 2026](https://x.com/karpathy/status/2039805659525644595). Garry Tan shipped the personal-scale version with [gbrain](https://github.com/garrytan/gbrain) twelve days later. Oblivion productizes the org-scale version for Solana companies, with the onchain attestation layer that makes the provenance unfalsifiable.
+Ask a Solana question. Get a grounded answer. Every response is permanently anchored onchain as a Solana attestation.
 
-Built for [Colosseum Frontier 2026](https://www.colosseum.com/frontier).
+---
 
 ## What it does
 
-Every active Solana company drowns in its own history. Operators grep Discourse, Notion, Telegram, GitHub, and X to brief the founder every morning. New contributors take six weeks to reach decision-context parity. The same proposals get re-litigated quarterly because nobody remembers what was already decided.
+Grimoire is a single-purpose tool with one primitive:
 
-Oblivion is the per-tenant AI brain underneath all of it.
+1. A user asks a Solana question.
+2. Claude answers, grounded by a local Solana glossary of 1000+ terms.
+3. The query, answer, and source hashes are anchored onchain as a permanent Solana PDA via a custom Anchor program.
+4. A solana.fm link is shown in the UI so the attestation is verifiable by anyone.
 
-You drop your sources: governance forum, GitHub repos and issues, X timelines, Discord, Notion, treasury TXs, Realms votes. An AI agent builds the index. You and your contributors ask questions in plain English. Every answer comes back with grounded citations to the exact source chunks. Every decision that matters becomes a permanent Solana attestation: query hash, source-document hashes, response hash, deterministic PDA. Notion gets edited. The attestation does not.
+That is the whole product. No multi-tenancy. No RAG database. No company brain features.
 
-Three signals converged to make this the obvious build right now:
+---
 
-1. **Every active Solana DAO drowns in proposals.** Marinade alone has 30 proposals across three forum migrations indexed as 91 retrieval chunks. Jito, Drift, Kamino, MarginFi hit the same wall at the same time. Universal pain in 2026, not Marinade-specific.
+## How the onchain attestation works
 
-2. **AI agents finally cross the institutional-scale threshold.** Karpathy and Garry Tan proved the pattern at personal scale. ChatGPT answers "what is validator delegation?" The org-scale per-tenant version, the one that answers "what is OUR DAO's position on validator delegation," was the next obvious build.
-
-3. **Solana attestations are cheap enough to use universally.** Pennies per record. [Glean](https://www.glean.com/) ($7.2B valuation) cannot retrofit this without rebuilding their Postgres + S3 stack and growing a wallet management story they do not have. The architectural moat is real.
-
-DAOs are the lead vertical. The pattern works for any Solana company with multi-source decision history: protocols, foundations, validator collectives, post-seed startups with a public roadmap.
-
-## Demo flow
-
-Marinade DAO's public governance forum is the live demo tenant. The full Marinade corpus is ingested: 30 proposals across three forum migrations, indexed as 91 retrieval chunks, plus 1059 Solana glossary terms for baseline context.
-
-1. Ask: "What does MIP-19 say about validator stake auction strategy?"
-2. Oblivion retrieves the top 3 MIP-19 chunks from the Marinade governance forum plus 2 supporting glossary terms.
-3. Claude Sonnet 4.6 streams a grounded answer with inline `[Source N]` citations.
-4. An attestation TX lands on Solana devnet. Signature, PDA, and explorer URL appear in the UI.
-5. Click the attestation pill. solana.fm shows the live onchain account with hashed inputs.
-
-Sample attestation: [3gdvdXLfmZ1wgDBZD4VKCjvk7KrHVgCdQAj2uDqJen8kBnJWRntDA967Wr5FvCouXJ7xA6kaZnUPFM7DKAhDVXia](https://solana.fm/tx/3gdvdXLfmZ1wgDBZD4VKCjvk7KrHVgCdQAj2uDqJen8kBnJWRntDA967Wr5FvCouXJ7xA6kaZnUPFM7DKAhDVXia?cluster=devnet-alpha)
-
-If a contributor or a partner contests the answer twelve months later, the attestation lets anyone reconstruct the exact retrieval that produced it.
-
-## Architecture
+Each attestation is a PDA derived from:
 
 ```
-User query
-  ├── OpenAI text-embedding-3-small → 1536-dim vector
-  ├── pgvector cosine search → top-K knowledge chunks
-  │     (3 governance_proposal bias + 2 glossary_baseline bias)
-  ├── Glossary MCP server SDK lookup → 3 relevant Solana terms
-  ├── Claude Sonnet 4.6 streaming with grounded context
-  └── Anchor program PDA derivation + createAttestation TX
-        → permanent onchain record of (org, source_hash, query_hash, response_hash)
+seeds = ["grimoire-att", client_org_id_bytes, sha256(source), sha256(query)]
 ```
 
-The two-pass cosine bias handles the default-order cap PostgREST puts on large result sets. RLS isolation on `client_org_id` keeps tenant brains separate at the database layer, the same multi-tenant pattern enterprises already trust.
+The `create_attestation` instruction stores hashes of the query, response, and source document on devnet. The program was deployed and is live. Its ID is immutable.
 
-## Stack
+**Program ID:** `B6NwW2diNY6cADxYwYsci7jRAKjDsYhG7ne6XgXPzXHm`
 
-- **Frontend:** Next.js 16 App Router, TypeScript, Tailwind CSS, React 19.
-- **Database:** Supabase Postgres with the pgvector extension, RLS per `client_org_id` for multi-tenant isolation.
-- **AI:** OpenAI text-embedding-3-small for query vectors (1536 dim), Anthropic Claude Sonnet 4.6 for grounded streaming with inline citations.
-- **Onchain:** Anchor 1.0.2 program on Solana devnet. Mainnet path is bytecode-identical (one redeploy, no source changes).
-- **Glossary MCP:** forked [@stbr/solana-glossary](https://github.com/solanabr/solana-glossary) (MIT). 1059 terms across 14 categories. Ships standalone as `npx solana-glossary`, connectable from any Claude Code, Cursor, or MCP-compatible client.
-- **Ingest pipeline:** separate TypeScript service that pulls Discourse threads, chunks at ~800 tokens, embeds via OpenAI, upserts into `knowledge_graph` and `memory_embeddings` tables.
+The on-chain program name is `grimoire_attestation`. The seed prefix `"grimoire-att"` is part of the deployed bytecode and cannot be changed without redeployment.
 
-## Repository layout
+---
 
-The submission ships across three repos. This one carries the frontend, RAG, and Anchor client. The glossary fork is already open. The ingest pipeline and Anchor program source go MIT post-Frontier.
+## Quickstart
 
-- `oblivion/`: this repo. Next.js frontend, RAG API route, Anchor client, vendored glossary.
-- [`oblivion-glossary/`](https://github.com/gabchess/oblivion-glossary): the forked MCP server plus 1059 Solana terms. Already open (MIT).
-- Ingest pipeline + Anchor program source live in private repos pre-Frontier. Both ship MIT after submission.
+### Prerequisites
 
-## Anchor program
+- Node.js 18+
+- A Solana keypair (for signing attestation transactions)
+- An Anthropic API key
 
-- **Program ID** (devnet): `B6NwW2diNY6cADxYwYsci7jRAKjDsYhG7ne6XgXPzXHm`
-- **Account struct:** `GrimoireAttestation`. Codename preservation: the deployed bytecode uses the original project name. User-facing brand is Oblivion.
-- **PDA seeds:** `[b"grimoire-att", client_org_id, source_doc_hash, query_hash]`
-- **Instructions:** `createAttestation(client_org_id, source_doc_hash, query_hash, response_hash, source_url_short)`
+### Environment variables
 
-The seed bytes `b"grimoire-att"` are immutable in the deployed program. Renaming the seed would change PDA derivation and invalidate every existing attestation, so the source preserves the original codename. Mainnet redeploy is bytecode-identical: same source, same seeds, same PDA derivation, new cluster.
+Copy `.env.example` to `.env.local` and fill in:
 
-## Run locally
+```
+ANTHROPIC_API_KEY=sk-ant-...
+
+# JSON array form of your Solana keypair (Vercel-compatible)
+# Generate: solana-keygen new --outfile /tmp/grimoire-key.json && cat /tmp/grimoire-key.json
+SOLANA_KEYPAIR_JSON=[204,100,21,...]
+
+NEXT_PUBLIC_PROGRAM_ID=B6NwW2diNY6cADxYwYsci7jRAKjDsYhG7ne6XgXPzXHm
+NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
+NEXT_PUBLIC_SOLANA_CLUSTER=devnet-alpha
+```
+
+For local development, if `SOLANA_KEYPAIR_JSON` is not set, the server falls back to `~/.config/solana/id.json`.
+
+### Install and run
 
 ```bash
-# Frontend
-cd oblivion
-cp .env.local.example .env.local  # fill in keys
 npm install
 npm run dev
-# open http://localhost:3000
-
-# The dev server reads ANTHROPIC_API_KEY from .env.local. If your shell exports
-# an empty ANTHROPIC_API_KEY (some setups do), bypass shell shadowing with:
-env ANTHROPIC_API_KEY=$(cat /path/to/anthropic-key) npm run dev
 ```
 
-Required env vars (`.env.local`):
+Open [http://localhost:3000](http://localhost:3000).
 
-- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-- `OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
-- `NEXT_PUBLIC_SOLANA_RPC_URL` (devnet default OK)
-- `NEXT_PUBLIC_PROGRAM_ID` (defaults to deployed devnet program)
-- `NEXT_PUBLIC_CLIENT_ORG_ID` (UUID for tenant scope; Marinade demo = `00000000-0000-0000-0000-000000000001`)
-- `NEXT_PUBLIC_SOLANA_CLUSTER` (`devnet-alpha` for solana.fm explorer URLs)
+---
 
-For production on Vercel:
+## Tech stack
 
-- `SOLANA_KEYPAIR_JSON`: the JSON array `solana-keygen` produces (65-byte array). Vercel has no filesystem access, so the keypair round-trips through an env var.
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router) |
+| AI | Claude via `@anthropic-ai/sdk` (streaming) |
+| Onchain | Anchor + `@coral-xyz/anchor`, `@solana/web3.js` |
+| Glossary | Local Solana glossary, 1000+ terms across 14 categories |
+| Styling | Tailwind CSS v4 |
 
-## Acknowledgments
+---
 
-The lineage matters. Hat-tips in chronological order.
+## Project structure
 
-- [Andrej Karpathy](https://x.com/karpathy) for the [LLM Wiki framing](https://x.com/karpathy/status/2039805659525644595) (April 3 2026) and the [follow-up idea file gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
-- [Garry Tan](https://x.com/garrytan) for [gbrain](https://github.com/garrytan/gbrain), the [open-source release tweet](https://x.com/garrytan/status/2042306761731031208), and the [cognitive-armor framing](https://x.com/garrytan/status/2043075944743923845) ("cognitive armor above the API line").
-- [solanabr](https://github.com/solanabr/solana-glossary) for the open Solana glossary MCP server we forked.
-- [Marinade Finance](https://forum.marinade.finance) for the public governance forum that powers the live demo. No partnership implied; the demo runs on publicly accessible data.
+```
+src/
+  app/
+    api/chat/route.ts   # SSE endpoint: glossary -> Claude -> attestation
+    page.tsx            # Single-page UI
+    layout.tsx          # Metadata
+  components/
+    AttestationPill.tsx # Live solana.fm link component
+    Logo.tsx            # Grimoire logomark
+    ...
+  lib/
+    attestation.ts      # Anchor client -- do not modify PROGRAM_ID or SEED_PREFIX
+    glossary-mcp.ts     # Local glossary lookup
+    glossary-data/      # 14 JSON term files
+    idl/
+      grimoire_attestation.json
+```
 
-## License
+---
 
-MIT. See [LICENSE](./LICENSE).
+## Notes
 
-Built for [Colosseum Frontier 2026](https://www.colosseum.com/frontier) by [gabchess](https://x.com/gabe_onchain). Submitted 2026-05-11 for the AI Platforms / Agents category.
+- The attestation client is server-side only. Do not import it from client components.
+- The keypair signs every attestation transaction and needs devnet SOL. Airdrop: `solana airdrop 2 <pubkey> --url devnet`.
+- Attestation failures are non-blocking. If the TX fails, the answer is still returned with a failure indicator.

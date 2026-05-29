@@ -1,8 +1,14 @@
 "use client";
 
-import GroundedAnswer from "./GroundedAnswer";
+import GroundedAnswer, { type Citation } from "./GroundedAnswer";
 import { LogoMark } from "./Logo";
-import { Message } from "@/data/marinade-demo";
+
+export interface Message {
+  id: string;
+  role: "user" | "agent";
+  content: string;
+  citations?: Citation[];
+}
 
 interface MessageBubbleProps {
   message: Message;
@@ -36,7 +42,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div
       role="listitem"
-      aria-label="Oblivion's response"
+      aria-label="Grimoire's response"
       className="flex justify-start"
     >
       <div
@@ -61,7 +67,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             <LogoMark size={12} aria-hidden="true" />
           </div>
           <span className="text-[0.6875rem] tracking-[0.02em] text-text-tertiary">
-            Oblivion
+            Grimoire
           </span>
         </div>
 

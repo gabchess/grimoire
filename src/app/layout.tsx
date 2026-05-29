@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Oblivion: your company brain, permanently onchain",
+  title: "Grimoire — Verifiable Onchain AI on Solana",
   description:
-    "Drop your X handle, repos, governance forum, and docs. Get an AI agent that answers any question about your organization, citing the exact source, with every answer attested on Solana.",
+    "Ask any Solana question. Get a grounded answer. Every response is permanently anchored onchain as a Solana attestation.",
 };
 
 export default function RootLayout({

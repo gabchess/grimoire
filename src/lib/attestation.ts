@@ -1,5 +1,5 @@
 /**
- * Oblivion Attestation Client
+ * Grimoire Attestation Client
  * Server-side only — reads keypair from filesystem, sends TX to devnet.
  * Do NOT import from client components.
  */
@@ -17,7 +17,7 @@ import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import type { Idl } from "@coral-xyz/anchor";
 
 // IDL import
-import IDL_JSON from "@/lib/idl/oblivion_attestation.json";
+import IDL_JSON from "@/lib/idl/grimoire_attestation.json";
 
 const PROGRAM_ID = new PublicKey(
   process.env.NEXT_PUBLIC_PROGRAM_ID || "B6NwW2diNY6cADxYwYsci7jRAKjDsYhG7ne6XgXPzXHm"
@@ -27,9 +27,9 @@ const RPC_URL =
 const KEYPAIR_PATH = "/Users/gava/.config/solana/id.json";
 // IMPORTANT: SEED_PREFIX must match the deployed program's seed bytes.
 // The Anchor program at B6NwW2diNY6cADxYwYsci7jRAKjDsYhG7ne6XgXPzXHm was
-// deployed with seed `b"grimoire-att"` (project codename pre-rebrand).
+// deployed with seed `b"grimoire-att"`. The IDL name is grimoire_attestation.
 // Renaming this string changes PDA derivation and breaks every attestation.
-// The user-facing brand is Oblivion; the on-chain seed bytes are immutable.
+// These on-chain seed bytes are immutable — do NOT change them.
 const SEED_PREFIX = Buffer.from("grimoire-att");
 
 /** Load the server-side signing keypair.

@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 import CitationCard from "./CitationCard";
-import { Citation } from "@/data/marinade-demo";
+
+export interface Citation {
+  proposalId: string;
+  title: string;
+  sourceUrl: string;
+  attestation: {
+    txHash: string;
+    explorerUrl: string;
+  };
+}
 
 interface GroundedAnswerProps {
   text: string;
@@ -76,7 +85,6 @@ export default function GroundedAnswer({ text, citations }: GroundedAnswerProps)
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
-    // Clear highlight after animation
     setTimeout(() => setHighlightedIdx(null), 1000);
   };
 

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import AttestationPill from "./AttestationPill";
-import { Citation, SourceType, detectSourceType } from "@/data/marinade-demo";
 import {
   Vote,
   BookOpen,
@@ -11,11 +10,21 @@ import {
   GitBranch,
   FileText,
 } from "lucide-react";
+import type { Citation } from "./GroundedAnswer";
 
 interface CitationCardProps {
   citation: Citation;
   index: number;
 }
+
+type SourceType =
+  | "governance_proposal"
+  | "glossary"
+  | "x_post"
+  | "onchain_tx"
+  | "github"
+  | "docs"
+  | "unknown";
 
 interface SourceTypeConfig {
   icon: React.ElementType;
@@ -23,33 +32,37 @@ interface SourceTypeConfig {
   label: string;
 }
 
-const SOURCE_TYPE_CONFIG: Record<SourceType | "unknown", SourceTypeConfig> = {
+const SOURCE_TYPE_CONFIG: Record<SourceType, SourceTypeConfig> = {
   governance_proposal: { icon: Vote, color: "#9945FF", label: "Governance" },
   glossary: { icon: BookOpen, color: "#64B5F6", label: "Glossary" },
   x_post: { icon: XIcon, color: "#1DA1F2", label: "X post" },
   onchain_tx: { icon: Link2, color: "#14F195", label: "Onchain TX" },
   github: { icon: GitBranch, color: "#E6EDF3", label: "GitHub" },
   docs: { icon: FileText, color: "#FFB800", label: "Docs" },
-  unknown: { icon: Link2, color: "#64647A", label: "Source" } as SourceTypeConfig,
+  unknown: { icon: Link2, color: "#64647A", label: "Source" },
 };
 
-function getSourceConfig(citation: Citation): SourceTypeConfig {
-  const type = citation.sourceType ?? detectSourceType(citation.sourceUrl);
-  return SOURCE_TYPE_CONFIG[type] ?? SOURCE_TYPE_CONFIG.unknown;
+function detectSourceType(url: string): SourceType {
+  if (url.includes("realms.today") || url.includes("snapshot.org"))
+    return "governance_proposal";
+  if (url.includes("github.com")) return "github";
+  if (url.includes("x.com") || url.includes("twitter.com")) return "x_post";
+  if (url.includes("solana.fm") || url.includes("explorer.solana.com"))
+    return "onchain_tx";
+  return "docs";
 }
 
 export default function CitationCard({ citation, index }: CitationCardProps) {
   const [hovered, setHovered] = useState(false);
-  const config = getSourceConfig(citation);
+  const type = detectSourceType(citation.sourceUrl);
+  const config = SOURCE_TYPE_CONFIG[type] ?? SOURCE_TYPE_CONFIG.unknown;
   const Icon = config.icon;
 
   const borderColor = hovered
-    ? config.color + "4D"  // 30% opacity
+    ? config.color + "4D"
     : "var(--color-border-subtle)";
 
-  const bgColor = hovered
-    ? config.color + "08"  // ~3% tint
-    : "var(--color-elevated)";
+  const bgColor = hovered ? config.color + "08" : "var(--color-elevated)";
 
   return (
     <article
@@ -78,7 +91,6 @@ export default function CitationCard({ citation, index }: CitationCardProps) {
       </span>
 
       <div className="flex items-start gap-3">
-        {/* Source type icon */}
         <div
           className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
           aria-hidden="true"
@@ -90,7 +102,6 @@ export default function CitationCard({ citation, index }: CitationCardProps) {
           <Icon size={16} style={{ color: config.color }} />
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-[0.8125rem] font-medium text-text-primary leading-none">

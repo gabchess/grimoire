@@ -62,7 +62,7 @@ export interface GlossaryHit {
   url: string;
 }
 
-const GLOSSARY_BASE_URL = "https://github.com/gabchess/oblivion-glossary";
+const GLOSSARY_BASE_URL = "https://github.com/gabchess/grimoire-glossary";
 
 function termUrl(id: string): string {
   return `${GLOSSARY_BASE_URL}#${id}`;
@@ -149,7 +149,7 @@ export function renderGlossaryContext(hits: GlossaryHit[]): string {
   );
   return [
     "",
-    "Solana Glossary Context (via gabchess/oblivion-glossary MCP server):",
+    "Solana Glossary Context:",
     ...lines,
   ].join("\n");
 }

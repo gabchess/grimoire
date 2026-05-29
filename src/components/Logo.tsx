@@ -6,12 +6,12 @@ interface LogoProps {
 }
 
 /**
- * Oblivion SVG logomark: gradient-stroked void circle per LOGO-BRIEF.md.
+ * Grimoire SVG logomark: gradient-stroked circle.
  * A circle with a Solana purple-to-green gradient stroke, void interior.
  * Used as icon-only at favicon/avatar scale; wordmark uses text-gradient CSS.
  */
 export function LogoMark({ size = 24, className = "" }: LogoProps) {
-  const id = "oblivion-logo-gradient";
+  const id = "grimoire-logo-gradient";
   return (
     <svg
       width={size}
@@ -48,7 +48,7 @@ export function LogoLockup({ className = "" }: { className?: string }) {
     <span className={`inline-flex items-center gap-2 ${className}`}>
       <LogoMark size={20} />
       <span className="text-gradient text-[1.25rem] font-semibold leading-none tracking-[-0.01em]">
-        Oblivion
+        Grimoire
       </span>
     </span>
   );
