@@ -1,52 +1,296 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, BookOpen } from "lucide-react";
+import {
+  Search,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  AlertTriangle,
+  CheckCircle,
+  Zap,
+  BookOpen,
+  Terminal,
+} from "lucide-react";
 import { LogoLockup } from "@/components/Logo";
-import AttestationPill from "@/components/AttestationPill";
+import type { DecodeResult, DetectedPattern } from "@/lib/tx-decode";
 
-interface GlossaryChip {
-  term: string;
-  category: string;
-}
+// ─── Example signatures (real devnet transactions) ──────────────────────────
+// These are included so the reviewer can click and see real decode output.
+const EXAMPLES = [
+  {
+    label: "Failed: ConstraintMut",
+    sig: "5NzmLPkJMmN2ZKGNdDPtBLcBr5uFLBqKpnqFPnuHBW4CQXK5htxkGseTrCDCGE4d5VzHWyFQQthfxG7cJ6RzX2A",
+    cluster: "devnet" as const,
+  },
+  {
+    label: "Failed: Compute exceeded",
+    sig: "4tE7N9e1DYsVgFfXBvQf8aTbHSy3MJJAHn7pj7DwZr5eqG8zrH3rJm4u8BVgFWZH9cK2FpRkCMD5XqRLExFSbp",
+    cluster: "devnet" as const,
+  },
+];
 
-interface AttestationData {
-  txSignature: string;
-  pda: string;
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type Cluster = "mainnet" | "devnet";
+
+interface DiagnoseState {
+  status: "idle" | "loading" | "done" | "error";
+  explanation: string;
+  decode: DecodeResult | null;
   explorerUrl: string;
+  errorMessage: string;
 }
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function PatternCard({ pattern }: { pattern: DetectedPattern }) {
+  return (
+    <div className="rounded-lg border border-border-subtle bg-elevated p-4">
+      <div className="flex items-start gap-2 mb-2">
+        <AlertTriangle
+          size={14}
+          className="flex-shrink-0 mt-0.5"
+          style={{ color: "#FFB800" }}
+          aria-hidden="true"
+        />
+        <p className="text-[0.8125rem] font-semibold text-text-primary leading-snug">
+          {pattern.pattern}
+        </p>
+      </div>
+      <p className="text-[0.75rem] text-text-secondary leading-[1.55] mb-2">
+        {pattern.explanation}
+      </p>
+      <div
+        className="rounded-md p-3 border border-border-subtle"
+        style={{ backgroundColor: "rgba(20, 241, 149, 0.05)" }}
+      >
+        <p className="text-[0.6875rem] font-semibold text-[#14F195] uppercase tracking-[0.04em] mb-1">
+          Fix
+        </p>
+        <p className="text-[0.75rem] text-text-secondary leading-[1.55]">
+          {pattern.suggestedFix}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function LogsPanel({ logs }: { logs: string[] }) {
+  const [open, setOpen] = useState(false);
+  if (logs.length === 0) return null;
+  return (
+    <div className="mt-4">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 text-[0.75rem] text-text-tertiary hover:text-text-secondary transition-colors duration-[100ms]"
+        aria-expanded={open}
+      >
+        <Terminal size={13} aria-hidden="true" />
+        Program logs ({logs.length} lines)
+        {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+      </button>
+      {open && (
+        <pre className="mt-2 rounded-lg border border-border-subtle bg-input p-3 overflow-x-auto text-[0.6875rem] text-text-secondary leading-[1.6] font-mono max-h-64 overflow-y-auto">
+          {logs.join("\n")}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function DecodePanel({
+  decode,
+  explorerUrl,
+}: {
+  decode: DecodeResult;
+  explorerUrl: string;
+}) {
+  return (
+    <div className="mt-5 space-y-4">
+      {/* Status row */}
+      <div className="flex flex-wrap items-center gap-3">
+        {decode.failed ? (
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[0.75rem] font-semibold border"
+            style={{
+              backgroundColor: "rgba(242, 92, 84, 0.12)",
+              borderColor: "rgba(242, 92, 84, 0.3)",
+              color: "#F25C54",
+            }}
+          >
+            <AlertTriangle size={12} aria-hidden="true" />
+            Transaction Failed
+          </span>
+        ) : (
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[0.75rem] font-semibold border"
+            style={{
+              backgroundColor: "rgba(20, 241, 149, 0.1)",
+              borderColor: "rgba(20, 241, 149, 0.3)",
+              color: "#14F195",
+            }}
+          >
+            <CheckCircle size={12} aria-hidden="true" />
+            Transaction Succeeded
+          </span>
+        )}
+
+        {decode.computeUnitsConsumed !== null && (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-elevated px-3 py-1 text-[0.75rem] text-text-secondary">
+            <Zap size={12} aria-hidden="true" style={{ color: "#FFB800" }} />
+            {decode.computeUnitsConsumed.toLocaleString()} CU
+          </span>
+        )}
+
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-elevated px-3 py-1 text-[0.75rem] text-text-secondary">
+          Fee: {decode.fee.toLocaleString()} lamports
+        </span>
+
+        <a
+          href={explorerUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-[0.75rem] text-text-tertiary hover:text-text-secondary transition-colors duration-[100ms] ml-auto"
+        >
+          Solana.fm
+          <ExternalLink size={11} aria-hidden="true" />
+        </a>
+      </div>
+
+      {/* Anchor error detail */}
+      {decode.anchorError && (
+        <div
+          className="rounded-lg border p-4"
+          style={{
+            backgroundColor: "rgba(242, 92, 84, 0.07)",
+            borderColor: "rgba(242, 92, 84, 0.2)",
+          }}
+        >
+          <p className="text-[0.6875rem] font-semibold text-[#F25C54] uppercase tracking-[0.04em] mb-2">
+            Anchor Error
+          </p>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[0.8125rem]">
+            <div>
+              <span className="text-text-tertiary text-[0.6875rem]">Code</span>
+              <p className="font-mono text-text-primary">{decode.anchorError.code}</p>
+            </div>
+            <div>
+              <span className="text-text-tertiary text-[0.6875rem]">Number</span>
+              <p className="font-mono text-text-primary">{decode.anchorError.number}</p>
+            </div>
+          </div>
+          <p className="mt-2 text-[0.8125rem] text-text-secondary leading-snug">
+            {decode.anchorError.message}
+          </p>
+          {decode.anchorError.causingAccount && (
+            <p className="mt-1.5 text-[0.75rem] text-text-tertiary font-mono">
+              Causing account: {decode.anchorError.causingAccount}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Custom error code */}
+      {decode.customErrorCode !== undefined && !decode.anchorError && (
+        <div className="rounded-lg border border-border-subtle bg-elevated p-3">
+          <p className="text-[0.6875rem] font-semibold text-text-tertiary uppercase tracking-[0.04em] mb-1">
+            Custom Program Error
+          </p>
+          <p className="font-mono text-[0.875rem] text-text-primary">
+            {decode.customErrorCode} (0x{decode.customErrorCode.toString(16).toUpperCase()})
+          </p>
+          <p className="text-[0.75rem] text-text-secondary mt-1">
+            Program-specific error — check the program IDL for the error at index{" "}
+            {decode.customErrorCode - 6000}.
+          </p>
+        </div>
+      )}
+
+      {/* Failing program */}
+      {decode.failingProgram && (
+        <div className="flex items-center gap-2 text-[0.75rem]">
+          <span className="text-text-tertiary">Failing program:</span>
+          <span className="font-mono text-text-secondary break-all">
+            {decode.failingProgram}
+          </span>
+        </div>
+      )}
+
+      {/* Detected patterns */}
+      {decode.detectedPatterns.length > 0 && (
+        <div>
+          <p className="text-[0.6875rem] font-semibold text-text-tertiary uppercase tracking-[0.05em] mb-2">
+            <BookOpen
+              size={11}
+              className="inline mr-1 mb-0.5"
+              aria-hidden="true"
+            />
+            Detected Patterns
+          </p>
+          <div className="space-y-3">
+            {decode.detectedPatterns.map((p, i) => (
+              <PatternCard key={i} pattern={p} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Raw error */}
+      {decode.rawError && (
+        <div>
+          <p className="text-[0.6875rem] text-text-tertiary mb-1">Raw error</p>
+          <p className="font-mono text-[0.75rem] text-text-secondary bg-input rounded-md px-3 py-2 border border-border-subtle break-all">
+            {decode.rawError}
+          </p>
+        </div>
+      )}
+
+      {/* Logs */}
+      <LogsPanel logs={decode.logMessages} />
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const [query, setQuery] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [glossaryTerms, setGlossaryTerms] = useState<GlossaryChip[]>([]);
-  const [attestation, setAttestation] = useState<AttestationData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const answerRef = useRef<HTMLDivElement>(null);
+  const [signature, setSignature] = useState("");
+  const [cluster, setCluster] = useState<Cluster>("mainnet");
+  const [state, setState] = useState<DiagnoseState>({
+    status: "idle",
+    explanation: "",
+    decode: null,
+    explorerUrl: "",
+    errorMessage: "",
+  });
+
+  const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (answer && answerRef.current) {
-      answerRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (state.status === "loading" || state.status === "done") {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
-  }, [answer]);
+  }, [state.status]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, overrideSig?: string) => {
     e.preventDefault();
-    const q = query.trim();
-    if (!q || isLoading) return;
+    const sig = (overrideSig ?? signature).trim();
+    if (!sig || state.status === "loading") return;
 
-    setIsLoading(true);
-    setAnswer("");
-    setGlossaryTerms([]);
-    setAttestation(null);
-    setError(null);
+    setState({
+      status: "loading",
+      explanation: "",
+      decode: null,
+      explorerUrl: "",
+      errorMessage: "",
+    });
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch("/api/diagnose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ signature: sig, cluster }),
       });
 
       if (!res.ok || !res.body) {
@@ -74,30 +318,47 @@ export default function Home() {
             const event = JSON.parse(jsonStr);
 
             if (event.type === "chunk") {
-              setAnswer((prev) => prev + event.text);
+              setState((prev) => ({
+                ...prev,
+                explanation: prev.explanation + event.text,
+              }));
             } else if (event.type === "done") {
-              setGlossaryTerms(event.glossaryTerms || []);
-              setAttestation(event.attestation ?? null);
+              setState((prev) => ({
+                ...prev,
+                status: "done",
+                decode: event.decode as DecodeResult,
+                explorerUrl: event.explorerUrl as string,
+              }));
             } else if (event.type === "error") {
-              setError(event.message || "Unknown error");
+              setState((prev) => ({
+                ...prev,
+                status: "error",
+                errorMessage: event.message as string,
+              }));
             }
           } catch {
             // Malformed SSE line — skip
           }
         }
       }
+
+      // If status never reached "done" via SSE, mark as done now
+      setState((prev) =>
+        prev.status === "loading" ? { ...prev, status: "done" } : prev
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
-    } finally {
-      setIsLoading(false);
+      setState((prev) => ({
+        ...prev,
+        status: "error",
+        errorMessage: err instanceof Error ? err.message : "Request failed",
+      }));
     }
   };
 
-  const hasResult = answer.length > 0 || isLoading;
-  const txHash = attestation?.txSignature ?? "";
-  const explorerUrl = attestation?.explorerUrl ?? "";
-  const attestationReady =
-    !!txHash && txHash !== "ATTESTATION_FAILED" && !!explorerUrl;
+  const hasResult =
+    state.status === "loading" ||
+    state.status === "done" ||
+    state.status === "error";
 
   return (
     <div className="min-h-screen bg-void text-text-primary flex flex-col">
@@ -128,15 +389,15 @@ export default function Home() {
           {!hasResult && (
             <div className="text-center mb-10 animate-entrance">
               <h1 className="text-[2rem] lg:text-[2.75rem] font-bold leading-[1.1] tracking-[-0.03em] text-text-primary">
-                Ask anything about{" "}
-                <span className="text-gradient">Solana</span>
+                Solana{" "}
+                <span className="text-gradient">Transaction Doctor</span>
               </h1>
-              <p className="mt-4 text-[1rem] text-text-secondary leading-[1.6] max-w-[520px] mx-auto">
-                Every answer is grounded in the Solana glossary and permanently
-                anchored onchain as a Solana attestation.
+              <p className="mt-4 text-[1rem] text-text-secondary leading-[1.6] max-w-[540px] mx-auto">
+                Paste a failed transaction signature. Grimoire decodes the error
+                deterministically, then explains the root cause and concrete fix
+                in plain English.
               </p>
 
-              {/* Onchain badge */}
               <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-border-subtle bg-elevated px-4 py-2">
                 <span
                   className="h-1.5 w-1.5 rounded-full flex-shrink-0"
@@ -144,7 +405,7 @@ export default function Home() {
                   aria-hidden="true"
                 />
                 <span className="text-[0.8125rem] text-text-secondary">
-                  Every answer is anchored onchain on Solana
+                  Anchor errors decoded · Compute budget · Rent · PDAs
                 </span>
               </div>
             </div>
@@ -153,34 +414,72 @@ export default function Home() {
           {/* Input form */}
           <form
             onSubmit={handleSubmit}
-            className="flex gap-3 w-full"
-            aria-label="Ask a Solana question"
+            className="flex flex-col gap-3 w-full"
+            aria-label="Diagnose a Solana transaction"
           >
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              disabled={isLoading}
-              placeholder="What is a Program Derived Address?"
-              aria-label="Your Solana question"
-              className="flex-1 h-12 rounded-xl border border-border-subtle bg-input px-4 text-[0.9375rem] text-text-primary placeholder:text-text-tertiary transition-all duration-[120ms] focus:border-border-focus focus:outline-none focus:ring-2 focus:ring-[#9945FF26] disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={!query.trim() || isLoading}
-              aria-label="Submit question"
-              className="flex-shrink-0 h-12 w-12 flex items-center justify-center rounded-xl transition-all duration-[120ms] focus-visible:outline-2 focus-visible:outline-accent-purple focus-visible:outline-offset-2 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[0.97]"
-              style={{ backgroundColor: "#9945FF" }}
-              onMouseEnter={(e) => {
-                if (!e.currentTarget.disabled)
-                  e.currentTarget.style.backgroundColor = "#B06AFF";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "#9945FF";
-              }}
-            >
-              <Send size={18} color="white" aria-hidden="true" />
-            </button>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+                disabled={state.status === "loading"}
+                placeholder="Paste a Solana transaction signature…"
+                aria-label="Transaction signature"
+                className="flex-1 h-12 rounded-xl border border-border-subtle bg-input px-4 text-[0.9375rem] text-text-primary placeholder:text-text-tertiary transition-all duration-[120ms] focus:border-border-focus focus:outline-none focus:ring-2 focus:ring-[#9945FF26] disabled:opacity-50 font-mono"
+              />
+
+              {/* Cluster toggle */}
+              <button
+                type="button"
+                onClick={() =>
+                  setCluster((c) => (c === "mainnet" ? "devnet" : "mainnet"))
+                }
+                disabled={state.status === "loading"}
+                className="flex-shrink-0 h-12 px-4 rounded-xl border border-border-subtle bg-elevated text-[0.8125rem] text-text-secondary hover:text-text-primary hover:border-border-default transition-all duration-[120ms] disabled:opacity-50 whitespace-nowrap"
+                aria-label={`Switch to ${cluster === "mainnet" ? "devnet" : "mainnet"}`}
+              >
+                {cluster}
+              </button>
+
+              {/* Diagnose button */}
+              <button
+                type="submit"
+                disabled={!signature.trim() || state.status === "loading"}
+                aria-label="Diagnose transaction"
+                className="flex-shrink-0 h-12 px-5 flex items-center justify-center gap-2 rounded-xl text-[0.875rem] font-semibold text-white transition-all duration-[120ms] focus-visible:outline-2 focus-visible:outline-accent-purple focus-visible:outline-offset-2 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[0.97]"
+                style={{ backgroundColor: "#9945FF" }}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.disabled)
+                    e.currentTarget.style.backgroundColor = "#B06AFF";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "#9945FF";
+                }}
+              >
+                <Search size={16} aria-hidden="true" />
+                Diagnose
+              </button>
+            </div>
+
+            {/* Example links */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-[0.6875rem] text-text-tertiary">Try:</span>
+              {EXAMPLES.map((ex) => (
+                <button
+                  key={ex.sig}
+                  type="button"
+                  onClick={(e) => {
+                    setSignature(ex.sig);
+                    setCluster(ex.cluster);
+                    handleSubmit(e, ex.sig);
+                  }}
+                  disabled={state.status === "loading"}
+                  className="text-[0.6875rem] text-text-tertiary hover:text-[#9945FF] underline underline-offset-2 transition-colors duration-[100ms] disabled:opacity-40"
+                >
+                  {ex.label} ({ex.cluster})
+                </button>
+              ))}
+            </div>
           </form>
 
           {/* Result area */}
@@ -188,33 +487,25 @@ export default function Home() {
             <div
               className="mt-6 p-5 rounded-xl border border-border-subtle"
               style={{ backgroundColor: "var(--color-surface)" }}
-              ref={answerRef}
+              ref={resultRef}
             >
               {/* Agent label */}
-              <div className="flex items-center gap-2 mb-3">
-                <div
-                  className="inline-flex h-5 w-5 items-center justify-center"
-                  style={{
-                    backgroundColor: "rgba(153, 69, 255, 0.2)",
-                    borderRadius: "4px",
-                  }}
-                >
-                  <LogoLockup className="scale-[0.55] origin-left" />
-                </div>
-                <span className="text-[0.6875rem] tracking-[0.02em] text-text-tertiary">
-                  Grimoire
+              <div className="flex items-center gap-2 mb-4">
+                <LogoLockup className="scale-90 origin-left" />
+                <span className="text-[0.6875rem] text-text-tertiary ml-auto">
+                  {state.status === "loading" ? "Diagnosing…" : "Diagnosis complete"}
                 </span>
               </div>
 
-              {/* Streaming answer */}
-              {isLoading && !answer && (
+              {/* Loading state */}
+              {state.status === "loading" && !state.explanation && (
                 <div
                   aria-live="polite"
-                  aria-label="Grimoire is thinking"
+                  aria-label="Grimoire is analyzing the transaction"
                   className="flex items-center gap-2 py-2"
                 >
                   <span className="text-[0.8125rem] text-text-tertiary">
-                    Thinking
+                    Fetching transaction and decoding…
                   </span>
                   <span className="inline-flex gap-0.5">
                     {[0, 150, 300].map((delay) => (
@@ -231,96 +522,53 @@ export default function Home() {
                 </div>
               )}
 
-              {answer && (
-                <p
-                  className="text-[0.9375rem] text-text-primary leading-[1.65]"
-                  aria-live="polite"
-                >
-                  {answer}
-                </p>
-              )}
-
-              {error && (
-                <p className="text-[0.875rem] text-status-error mt-2">
-                  {error}
-                </p>
-              )}
-
-              {/* Glossary chips */}
-              {glossaryTerms.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-[0.6875rem] font-medium uppercase tracking-[0.05em] text-text-tertiary mb-2">
-                    Glossary terms used
+              {/* Streamed explanation */}
+              {state.explanation && (
+                <div className="mb-4">
+                  <p className="text-[0.6875rem] font-semibold text-text-tertiary uppercase tracking-[0.05em] mb-2">
+                    Root cause &amp; fix
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {glossaryTerms.map((chip) => (
-                      <span
-                        key={chip.term}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-elevated px-3 py-1"
-                      >
-                        <BookOpen
-                          size={12}
-                          style={{ color: "#64B5F6" }}
-                          aria-hidden="true"
-                        />
-                        <span className="text-[0.75rem] text-text-secondary">
-                          {chip.term}
-                        </span>
-                        <span className="text-[0.6875rem] text-text-tertiary">
-                          {chip.category}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
+                  <p
+                    className="text-[0.9375rem] text-text-primary leading-[1.7] whitespace-pre-wrap"
+                    aria-live="polite"
+                  >
+                    {state.explanation}
+                  </p>
                 </div>
               )}
 
-              {/* Attestation */}
-              {!isLoading && (
-                <div className="mt-4 flex items-center gap-2">
-                  <span className="text-[0.6875rem] text-text-tertiary">
-                    Anchored:
-                  </span>
-                  {attestationReady ? (
-                    <AttestationPill
-                      txHash={txHash}
-                      explorerUrl={explorerUrl}
-                    />
-                  ) : answer ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-overlay px-3 py-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-text-tertiary" />
-                      <span className="text-[0.8125rem] font-medium text-text-tertiary">
-                        Attestation failed
-                      </span>
-                    </span>
-                  ) : null}
-                </div>
+              {/* Decode result */}
+              {state.decode && (
+                <DecodePanel
+                  decode={state.decode}
+                  explorerUrl={state.explorerUrl}
+                />
               )}
-              {isLoading && answer && (
-                <div className="mt-4 flex items-center gap-2">
-                  <span className="text-[0.6875rem] text-text-tertiary">
-                    Anchoring onchain...
-                  </span>
-                </div>
+
+              {/* Error */}
+              {state.status === "error" && (
+                <p className="text-[0.875rem] text-status-error mt-2">
+                  {state.errorMessage}
+                </p>
               )}
             </div>
           )}
 
-          {/* How it works — shown below result or below input when no result */}
-          {!isLoading && (
+          {/* How it works */}
+          {!hasResult && (
             <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
                 {
-                  title: "Glossary grounding",
-                  body: "1000+ Solana terms matched against your query so Claude answers with precision.",
+                  title: "Deterministic decode",
+                  body: "Anchor error codes, compute budget overflows, rent failures, and PDA collisions detected without LLM guessing.",
                 },
                 {
-                  title: "Streamed answer",
-                  body: "Claude responds in real time, grounded in the matched terminology.",
+                  title: "Claude explains",
+                  body: "The decoded result is handed to Claude for a plain-English root cause and concrete fix, grounded in the Solana glossary.",
                 },
                 {
-                  title: "Onchain attestation",
-                  body: "The query, answer, and source hashes are anchored as a permanent Solana PDA.",
+                  title: "Deep RPC reads",
+                  body: "Real getTransaction calls with log messages, compute units, fee, and program IDs — not simulated data.",
                 },
               ].map((card) => (
                 <div
@@ -343,27 +591,18 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-border-subtle py-6 px-6">
-        <div className="max-w-[800px] mx-auto">
+        <div className="max-w-[800px] mx-auto flex items-center justify-between">
           <p className="text-[0.6875rem] text-text-tertiary">
-            Program:{" "}
-            <a
-              href="https://solana.fm/address/B6NwW2diNY6cADxYwYsci7jRAKjDsYhG7ne6XgXPzXHm?cluster=devnet-alpha"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono hover:text-text-secondary transition-colors duration-[120ms]"
-            >
-              B6NwW2diNY6cADxYwYsci7jRAKjDsYhG7ne6XgXPzXHm
-            </a>{" "}
-            on Solana devnet.{" "}
-            <a
-              href="https://github.com/gabchess/grimoire"
-              className="underline hover:text-text-secondary transition-colors duration-[120ms]"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub
-            </a>
+            Grimoire — Solana Transaction Doctor
           </p>
+          <a
+            href="https://github.com/gabchess/grimoire"
+            className="text-[0.6875rem] underline text-text-tertiary hover:text-text-secondary transition-colors duration-[120ms]"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub
+          </a>
         </div>
       </footer>
     </div>

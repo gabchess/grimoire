@@ -1,74 +1,48 @@
-# Grimoire
+# Grimoire — Solana Transaction Doctor
 
-Verifiable onchain AI on Solana.
+Paste a failed Solana transaction signature. Grimoire fetches it via RPC, decodes the failure against known Anchor and runtime error patterns, and returns a plain-English root cause with a concrete fix.
 
-Ask a Solana question. Get a grounded answer. Every response is permanently anchored onchain as a Solana attestation.
-
----
-
-## What it does
-
-Grimoire is a single-purpose tool with one primitive:
-
-1. A user asks a Solana question.
-2. Claude answers, grounded by a local Solana glossary of 1000+ terms.
-3. The query, answer, and source hashes are anchored onchain as a permanent Solana PDA via a custom Anchor program.
-4. A solana.fm link is shown in the UI so the attestation is verifiable by anyone.
-
-That is the whole product. No multi-tenancy. No RAG database. No company brain features.
+Real example: `Error Code: ConstraintSeeds. Error Number: 2006.` becomes "Your PDA seeds on the client don't match what the program derives with `find_program_address`. Check that the seed buffers and program ID are identical on both sides."
 
 ---
 
-## How the onchain attestation works
+## How it works
 
-Each attestation is a PDA derived from:
+Two-stage pipeline:
 
-```
-seeds = ["grimoire-att", client_org_id_bytes, sha256(source), sha256(query)]
-```
+1. **Deterministic decode** (`src/lib/tx-decode.ts`): no LLM. Pattern-matches against `meta.err`, `meta.logMessages`, and compute unit data. Extracts Anchor error code/number/message, custom program error codes, compute budget overflows, rent failures, PDA collisions, stale blockhash, and the failing program ID. This is what makes the output reliable rather than a guessing machine.
 
-The `create_attestation` instruction stores hashes of the query, response, and source document on devnet. The program was deployed and is live. Its ID is immutable.
+2. **Claude explains**: the structured decode result is passed to `claude-sonnet-4-6` via `@anthropic-ai/sdk`. The system prompt is explicit: explain what the decoder found, give a concrete fix. Claude does not re-detect errors. Grounded with relevant terms from a local Solana glossary (1000+ terms, 14 categories).
 
-**Program ID:** `B6NwW2diNY6cADxYwYsci7jRAKjDsYhG7ne6XgXPzXHm`
-
-The on-chain program name is `grimoire_attestation`. The seed prefix `"grimoire-att"` is part of the deployed bytecode and cannot be changed without redeployment.
+The split matters. If the decode returns no patterns, Claude says so. It does not invent errors.
 
 ---
 
 ## Quickstart
 
-### Prerequisites
+```bash
+cp .env.example .env.local
+# fill in ANTHROPIC_API_KEY (required)
+# SOLANA_RPC_* default to public endpoints; set for higher rate limits
 
-- Node.js 18+
-- A Solana keypair (for signing attestation transactions)
-- An Anthropic API key
+npm run dev
+```
 
-### Environment variables
+Open [http://localhost:3000](http://localhost:3000). Paste any mainnet or devnet transaction signature.
 
-Copy `.env.example` to `.env.local` and fill in:
+---
+
+## Environment variables
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 
-# JSON array form of your Solana keypair (Vercel-compatible)
-# Generate: solana-keygen new --outfile /tmp/grimoire-key.json && cat /tmp/grimoire-key.json
-SOLANA_KEYPAIR_JSON=[204,100,21,...]
-
-NEXT_PUBLIC_PROGRAM_ID=B6NwW2diNY6cADxYwYsci7jRAKjDsYhG7ne6XgXPzXHm
-NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
-NEXT_PUBLIC_SOLANA_CLUSTER=devnet-alpha
+# Optional — defaults to public RPC if unset
+SOLANA_RPC_MAINNET=https://api.mainnet-beta.solana.com
+SOLANA_RPC_DEVNET=https://api.devnet.solana.com
 ```
 
-For local development, if `SOLANA_KEYPAIR_JSON` is not set, the server falls back to `~/.config/solana/id.json`.
-
-### Install and run
-
-```bash
-npm install
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
+No keypair. No program ID. Grimoire reads transactions, it does not write them.
 
 ---
 
@@ -77,9 +51,9 @@ Open [http://localhost:3000](http://localhost:3000).
 | Layer | Technology |
 |-------|-----------|
 | Framework | Next.js 16 (App Router) |
-| AI | Claude via `@anthropic-ai/sdk` (streaming) |
-| Onchain | Anchor + `@coral-xyz/anchor`, `@solana/web3.js` |
-| Glossary | Local Solana glossary, 1000+ terms across 14 categories |
+| AI | Claude `claude-sonnet-4-6` via `@anthropic-ai/sdk` (streaming) |
+| Solana | `@solana/web3.js` — RPC reads only |
+| Glossary | Local Solana glossary, 1000+ terms, 14 categories |
 | Styling | Tailwind CSS v4 |
 
 ---
@@ -89,25 +63,31 @@ Open [http://localhost:3000](http://localhost:3000).
 ```
 src/
   app/
-    api/chat/route.ts   # SSE endpoint: glossary -> Claude -> attestation
-    page.tsx            # Single-page UI
-    layout.tsx          # Metadata
+    api/diagnose/route.ts  # SSE: fetch tx -> decode -> Claude explanation
+    page.tsx               # Single-page Tx Doctor UI
+    layout.tsx             # Metadata
   components/
-    AttestationPill.tsx # Live solana.fm link component
-    Logo.tsx            # Grimoire logomark
-    ...
+    Logo.tsx               # Grimoire logomark
   lib/
-    attestation.ts      # Anchor client -- do not modify PROGRAM_ID or SEED_PREFIX
-    glossary-mcp.ts     # Local glossary lookup
-    glossary-data/      # 14 JSON term files
-    idl/
-      grimoire_attestation.json
+    tx-decode.ts           # Deterministic decode engine (no LLM)
+    glossary-mcp.ts        # Local glossary lookup
+    glossary-data/         # 14 JSON term files
 ```
 
 ---
 
-## Notes
+## MCP angle
 
-- The attestation client is server-side only. Do not import it from client components.
-- The keypair signs every attestation transaction and needs devnet SOL. Airdrop: `solana airdrop 2 <pubkey> --url devnet`.
-- Attestation failures are non-blocking. If the TX fails, the answer is still returned with a failure indicator.
+The decode engine (`tx-decode.ts`) is designed to be callable as an MCP tool. An LLM agent running in a Solana dev context could call `diagnose_transaction(sig)` and get the structured decode result back as tool output, then reason over it. The same separation that makes the web UI reliable makes it a good MCP primitive.
+
+---
+
+## Detected patterns
+
+- Anchor framework errors (codes 2000–3999) with name, number, message, and causing account
+- Program-specific custom errors (codes 6000+) with IDL lookup guidance
+- Compute budget exceeded / near-limit usage
+- Insufficient lamports and rent failures
+- Account already in use (PDA collision / re-init)
+- Blockhash not found (stale transaction)
+- Failing program ID extraction from logs

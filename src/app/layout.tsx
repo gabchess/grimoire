@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Grimoire — Verifiable Onchain AI on Solana",
+  title: "Grimoire — Solana Transaction Doctor",
   description:
-    "Ask any Solana question. Get a grounded answer. Every response is permanently anchored onchain as a Solana attestation.",
+    "Paste a failed Solana transaction signature. Grimoire decodes the error deterministically — Anchor codes, compute budget, rent, PDA collisions — then explains the root cause and fix in plain English.",
 };
 
 export default function RootLayout({
