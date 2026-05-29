@@ -22,6 +22,25 @@ import {
   renderGlossaryContext,
 } from "@/lib/glossary-mcp";
 
+// ─── In-memory rate limiter (H3) ─────────────────────────────────────────────
+// Simple token-bucket per IP: 15 requests per 60-second window, in-memory only.
+// Acceptable for a demo; state resets on cold start.
+const RATE_LIMIT_MAX = 15;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const hits = new Map<string, { n: number; reset: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = hits.get(ip);
+  if (!entry || now >= entry.reset) {
+    hits.set(ip, { n: 1, reset: now + RATE_LIMIT_WINDOW_MS });
+    return true; // allowed
+  }
+  if (entry.n >= RATE_LIMIT_MAX) return false; // blocked
+  entry.n++;
+  return true; // allowed
+}
+
 // ─── RPC endpoints (server-side only, not NEXT_PUBLIC_) ──────────────────────
 const RPC_MAINNET =
   process.env.SOLANA_RPC_MAINNET ?? "https://api.mainnet-beta.solana.com";
@@ -136,11 +155,42 @@ export async function POST(req: NextRequest) {
         }
 
         const sig = signature.trim();
+
+        // L4: validate Solana base58 signature format before any RPC call.
+        if (!/^[1-9A-HJ-NP-Za-km-z]{86,90}$/.test(sig)) {
+          controller.enqueue(
+            sseEvent({ type: "error", message: "Invalid transaction signature format" })
+          );
+          controller.close();
+          return;
+        }
+
+        // H3: ANTHROPIC_API_KEY guard — check at request time to surface misconfiguration clearly.
+        if (!process.env.ANTHROPIC_API_KEY) {
+          controller.enqueue(
+            sseEvent({ type: "error", message: "Server misconfiguration: ANTHROPIC_API_KEY is required" })
+          );
+          controller.close();
+          return;
+        }
+
+        // H3: per-IP rate limit check.
+        const ip =
+          req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+        if (!checkRateLimit(ip)) {
+          controller.enqueue(
+            sseEvent({ type: "error", message: "Rate limit: try again in a minute" })
+          );
+          controller.close();
+          return;
+        }
+
         const cluster: Cluster =
           rawCluster === "devnet" ? "devnet" : "mainnet";
 
         // --- Fetch transaction ---
-        const connection = new Connection(rpcUrl(cluster), "confirmed");
+        // M3: use "finalized" commitment so historical txs are not returned as null.
+        const connection = new Connection(rpcUrl(cluster), "finalized");
 
         let txResult;
         try {
@@ -169,7 +219,7 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        const { meta, transaction } = txResult;
+        const { meta } = txResult;
 
         if (!meta) {
           controller.enqueue(
@@ -183,7 +233,7 @@ export async function POST(req: NextRequest) {
         }
 
         // --- Deterministic decode ---
-        const decode = decodeTransactionFailure(meta, { transaction } as never);
+        const decode = decodeTransactionFailure(meta);
 
         // --- Glossary grounding ---
         // Build a query string from error patterns for term lookup

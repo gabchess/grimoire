@@ -120,16 +120,6 @@ interface TxMeta {
   innerInstructions?: unknown[] | null;
 }
 
-interface TxMessage {
-  accountKeys?: Array<{ pubkey: { toBase58(): string } } | { pubkey: string }>;
-}
-
-interface TxData {
-  transaction: {
-    message: TxMessage;
-  };
-}
-
 // ─── Log pattern regexes ────────────────────────────────────────────────────
 
 // "Program <id> failed: custom program error: 0x<hex>"
@@ -137,8 +127,9 @@ const RX_PROGRAM_FAILED =
   /Program (\S+) failed: (.+)/i;
 
 // "AnchorError ... Error Code: <Name>. Error Number: <N>. Error Message: <msg>."
+// C1: use [\s\S]*? instead of [^.]* so dots inside paths (e.g. lib.rs:42.) don't stop the match.
 const RX_ANCHOR_ERROR_FULL =
-  /AnchorError[^.]*Error Code: (\w+)\. Error Number: (\d+)\. Error Message: ([^.]+(?:\.[^.]+)*?)\./;
+  /AnchorError[\s\S]*?Error Code: (\w+)\. Error Number: (\d+)\. Error Message: ([^.]+(?:\.[^.]+)*?)\./;
 
 // "AnchorError caused by account: <account>."
 const RX_ANCHOR_CAUSED_BY =
@@ -148,13 +139,9 @@ const RX_ANCHOR_CAUSED_BY =
 const RX_CUSTOM_HEX =
   /custom program error: 0x([0-9a-fA-F]+)/i;
 
-// "Program log: AnchorError ..."  (alternate log format)
-const RX_PROGRAM_LOG_ANCHOR =
-  /Program log: AnchorError/i;
-
-// Compute budget exceeded
+// Compute budget exceeded — H1: broadened to match meta.err token + validator log variants.
 const RX_COMPUTE_EXCEEDED =
-  /(?:exceeded CUs|Computational budget exceeded|compute budget exceeded|exceeded max units)/i;
+  /(?:exceeded CUs|Computational budget exceeded|compute budget exceeded|exceeded max units|ComputationalBudgetExceeded|exceeded maximum number of instructions)/i;
 
 // "consumed N of M compute units" — used to detect near-limit usage
 const RX_COMPUTE_CONSUMED =
@@ -167,13 +154,13 @@ const RX_INSUFFICIENT_LAMPORTS =
 const RX_INSUFFICIENT_RENT =
   /insufficient funds for rent/i;
 
-// Account already in use (re-init / PDA collision)
+// Account already in use (re-init / PDA collision) — H2: add camelCase meta.err token.
 const RX_ALREADY_IN_USE =
-  /already in use/i;
+  /already in use|AccountAlreadyInUse/i;
 
-// Blockhash not found
+// Blockhash not found — H2: add camelCase meta.err token.
 const RX_BLOCKHASH_NOT_FOUND =
-  /blockhash not found/i;
+  /blockhash not found|BlockhashNotFound/i;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -213,6 +200,9 @@ function extractAnchorError(
   // splits the error across consecutive log lines)
   const combined = logs.join(" ");
 
+  // C1: run causingMatch OUTSIDE the fullMatch guard so it is always captured.
+  const causingMatch = combined.match(RX_ANCHOR_CAUSED_BY);
+
   const fullMatch = combined.match(RX_ANCHOR_ERROR_FULL);
   if (!fullMatch) {
     // Try to detect by custom hex code alone and map against our table
@@ -225,6 +215,7 @@ function extractAnchorError(
           code: entry.name,
           number: code,
           message: entry.meaning,
+          causingAccount: causingMatch ? causingMatch[1] : undefined,
         };
       }
     }
@@ -234,8 +225,6 @@ function extractAnchorError(
   const codeName = fullMatch[1];
   const codeNumber = parseInt(fullMatch[2], 10);
   const message = fullMatch[3].trim();
-
-  const causingMatch = combined.match(RX_ANCHOR_CAUSED_BY);
 
   return {
     code: codeName,
@@ -253,6 +242,13 @@ function extractCustomErrorCode(
   logs: string[],
   errString: string
 ): number | undefined {
+  // M1: parse {"Custom":N} shape from errString directly (logs may be null/pruned).
+  const directMatch = errString.match(/"Custom"\s*:\s*(\d+)/);
+  if (directMatch) {
+    const code = parseInt(directMatch[1], 10);
+    if (!ANCHOR_ERROR_TABLE[code]) return code;
+  }
+
   const combined = logs.join(" ") + " " + errString;
   const m = combined.match(RX_CUSTOM_HEX);
   if (!m) return undefined;
@@ -377,17 +373,20 @@ function detectPatterns(
     });
   }
 
-  // --- Custom program error (not Anchor framework) ---
+  // --- Custom program error (not Anchor framework) --- M2: emit for ALL codes, not only >=6000.
   const customCode = extractCustomErrorCode(logs, errString);
-  if (customCode !== undefined && customCode >= 6000 && !anchorError) {
+  if (customCode !== undefined && !anchorError) {
+    const idlHint = customCode >= 6000
+      ? `Find the entry at index ${customCode - 6000} (0-indexed) in the program's #[error_code] enum.`
+      : `Program error code: ${customCode}. Check the program's source or IDL for this low-numbered error.`;
     patterns.push({
       pattern: `Custom program error: ${customCode} (0x${customCode.toString(16).toUpperCase()})`,
       explanation:
-        `This is a program-defined custom error (codes >= 6000 are program-specific). The program author defines these in their IDL under the 'errors' array. Code ${customCode} maps to a specific named error in that program.`,
+        customCode >= 6000
+          ? `This is a program-defined custom error (codes >= 6000 are program-specific). The program author defines these in their IDL under the 'errors' array. Code ${customCode} maps to a specific named error in that program.`
+          : `Custom program error with code ${customCode}. This is a program-defined error code below the conventional Anchor 6000 range.`,
       suggestedFix:
-        "Look up the error in the program's IDL file or source code. In Anchor programs, errors are defined with #[error_code] enum. Find the entry at index " +
-        (customCode - 6000) +
-        " (0-indexed) to get the name and message.",
+        "Look up the error in the program's IDL file or source code. In Anchor programs, errors are defined with #[error_code] enum. " + idlHint,
     });
   }
 
@@ -450,13 +449,10 @@ function accountFix(code: string, account?: string): string {
 /**
  * Decode a Solana transaction's failure (or success) into structured data.
  *
- * @param meta  - The TransactionMeta from getTransaction (meta field)
- * @param txData - The transaction data (transaction field) — used for program ID extraction
+ * @param meta - The TransactionMeta from getTransaction (meta field)
  */
 export function decodeTransactionFailure(
-  meta: TxMeta,
-  // txData is optional; we accept it for future use but do not require it
-  _txData?: TxData
+  meta: TxMeta
 ): DecodeResult {
   const logs: string[] = (meta.logMessages ?? []).filter(
     (l): l is string => typeof l === "string"

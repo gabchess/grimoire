@@ -206,8 +206,10 @@ function DecodePanel({
             {decode.customErrorCode} (0x{decode.customErrorCode.toString(16).toUpperCase()})
           </p>
           <p className="text-[0.75rem] text-text-secondary mt-1">
-            Program-specific error — check the program IDL for the error at index{" "}
-            {decode.customErrorCode - 6000}.
+            {decode.customErrorCode >= 6000
+              ? <>Program-specific error — check the program IDL for the error at index{" "}{decode.customErrorCode - 6000}.</>
+              : <>Program error code: {decode.customErrorCode}.</>
+            }
           </p>
         </div>
       )}
