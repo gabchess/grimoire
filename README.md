@@ -1,4 +1,4 @@
-# Grimoire — Solana Transaction Doctor
+# Grimoire: Solana Transaction Doctor
 
 Paste a failed Solana transaction signature. Grimoire fetches it via RPC, decodes the failure against known Anchor and runtime error patterns, and returns a plain-English root cause with a concrete fix.
 
@@ -10,7 +10,7 @@ Real example: `Error Code: ConstraintSeeds. Error Number: 2006.` becomes "Your P
 
 Two-stage pipeline:
 
-1. **Deterministic decode** (`src/lib/tx-decode.ts`): no LLM. Pattern-matches against `meta.err`, `meta.logMessages`, and compute unit data. Extracts Anchor error code/number/message, custom program error codes, compute budget overflows, rent failures, PDA collisions, stale blockhash, and the failing program ID. This is what makes the output reliable rather than a guessing machine.
+1. **Deterministic decode** (`src/lib/tx-decode.ts`): no LLM. Pattern-matches against `meta.err`, `meta.logMessages`, and compute unit data. This is what makes the output reliable rather than a hallucination machine.
 
 2. **Claude explains**: the structured decode result is passed to `claude-sonnet-4-6` via `@anthropic-ai/sdk`. The system prompt is explicit: explain what the decoder found, give a concrete fix. Claude does not re-detect errors. Grounded with relevant terms from a local Solana glossary (1000+ terms, 14 categories).
 
@@ -37,7 +37,7 @@ Open [http://localhost:3000](http://localhost:3000). Paste any mainnet or devnet
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 
-# Optional — defaults to public RPC if unset
+# Optional: defaults to public RPC if unset
 SOLANA_RPC_MAINNET=https://api.mainnet-beta.solana.com
 SOLANA_RPC_DEVNET=https://api.devnet.solana.com
 ```
@@ -52,7 +52,7 @@ No keypair. No program ID. Grimoire reads transactions, it does not write them.
 |-------|-----------|
 | Framework | Next.js 16 (App Router) |
 | AI | Claude `claude-sonnet-4-6` via `@anthropic-ai/sdk` (streaming) |
-| Solana | `@solana/web3.js` — RPC reads only |
+| Solana | `@solana/web3.js`, RPC reads only |
 | Glossary | Local Solana glossary, 1000+ terms, 14 categories |
 | Styling | Tailwind CSS v4 |
 
@@ -84,7 +84,7 @@ The decode engine (`tx-decode.ts`) is designed to be callable as an MCP tool. An
 
 ## Detected patterns
 
-- Anchor framework errors (codes 2000–3999) with name, number, message, and causing account
+- Anchor framework errors (codes 2000 to 3999) with name, number, message, and causing account
 - Program-specific custom errors (codes 6000+) with IDL lookup guidance
 - Compute budget exceeded / near-limit usage
 - Insufficient lamports and rent failures
