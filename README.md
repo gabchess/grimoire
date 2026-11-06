@@ -1,48 +1,60 @@
 # Grimoire: Solana Transaction Doctor
 
-Paste a failed Solana transaction signature. Grimoire fetches it via RPC, decodes the failure against known Anchor and runtime error patterns, and returns a plain-English root cause with a concrete fix.
+Paste a failed Solana mainnet transaction signature. Grimoire fetches it, and plain code names the root cause, the fix and the log line that proves it. No AI model runs anywhere in the app.
 
-Real example: `Error Code: ConstraintSeeds. Error Number: 2006.` becomes "Your PDA seeds on the client don't match what the program derives with `find_program_address`. Check that the seed buffers and program ID are identical on both sides."
+Example: a pump.fun buy that logged `Error Code: BuySlippageBelowMinTokensOut. Error Number: 6042.` comes back as "Slippage tolerance exceeded" in instruction #14 (Solana Explorer numbering), with the fee it still paid and a fix.
 
 ---
 
 ## How it works
 
-Two-stage pipeline:
+1. **Recorded fixtures first.** If the signature is one of the real failed transactions in `test/fixtures/tx`, the route answers from that file with no network call. The demo works offline and with no keys.
+2. **Fetch.** Otherwise the server route calls `getTransaction` through Helius when `HELIUS_API_KEY` is set, and through the public Solana RPC when it is not (`src/lib/helius.ts`).
+3. **Diagnose.** `src/lib/diagnose.ts` maps `meta.err` and the program logs to one cause. Error codes are looked up by the failing program id, because the same code means different things in different programs.
+4. **Cross-check.** With a Helius key, the route also asks Helius Parsed Events for its decoded error and reports whether it agrees with our error code.
 
-1. **Deterministic decode** (`src/lib/tx-decode.ts`): no LLM. Pattern-matches against `meta.err`, `meta.logMessages`, and compute unit data. This is what makes the output reliable rather than a hallucination machine.
-
-2. **Claude explains**: the structured decode result is passed to `claude-sonnet-4-6` via `@anthropic-ai/sdk`. The system prompt is explicit: explain what the decoder found, give a concrete fix. Claude does not re-detect errors. Grounded with relevant terms from a local Solana glossary (1000+ terms, 14 categories).
-
-The split matters. If the decode returns no patterns, Claude says so. It does not invent errors.
+The page also shows a failure census: plain code run over 369 real failed mainnet transactions recorded on 2026-11-05 (`data/failed-tx-census-2026-11-05.json`). The census is computed on the server at build time.
 
 ---
 
 ## Quickstart
 
 ```bash
-cp .env.example .env.local
-# fill in ANTHROPIC_API_KEY (required)
-# SOLANA_RPC_* default to public endpoints; set for higher rate limits
-
+npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Paste any mainnet or devnet transaction signature.
+Open [http://localhost:3000](http://localhost:3000) and click one of the example chips, or paste any failed mainnet signature.
+
+```bash
+npm test     # offline test suite, network calls are blocked
+```
 
 ---
 
 ## Environment variables
 
-```
-ANTHROPIC_API_KEY=sk-ant-...
+All optional.
 
-# Optional: defaults to public RPC if unset
-SOLANA_RPC_MAINNET=https://api.mainnet-beta.solana.com
-SOLANA_RPC_DEVNET=https://api.devnet.solana.com
+```
+# Use Helius for lookups and turn on the Parsed Events cross-check. Server side only.
+HELIUS_API_KEY=
+
+# Public RPC to use when HELIUS_API_KEY is unset. Defaults to https://api.mainnet-beta.solana.com
+SOLANA_RPC_MAINNET=
 ```
 
-No keypair. No program ID. Grimoire reads transactions, it does not write them.
+The key is read only in the server route. A test (`test/no-client-key.test.ts`) fails if a client component imports the Helius client or names the key. No keypair, no writes. Grimoire only reads transactions.
+
+---
+
+## Record a new fixture
+
+```bash
+node scripts/record-fixture.mjs <signature> <cause>
+```
+
+`<cause>` is one of the causes in `src/lib/diagnose.ts`. The script refuses a transaction that did not fail and never writes the key to the file. The new fixture shows up as an example on the page and in the test suite.
 
 ---
 
@@ -51,9 +63,9 @@ No keypair. No program ID. Grimoire reads transactions, it does not write them.
 | Layer | Technology |
 |-------|-----------|
 | Framework | Next.js 16 (App Router) |
-| AI | Claude `claude-sonnet-4-6` via `@anthropic-ai/sdk` (streaming) |
-| Solana | `@solana/web3.js`, RPC reads only |
-| Glossary | Local Solana glossary, 1000+ terms, 14 categories |
+| Data | Helius RPC and Parsed Events, public Solana RPC fallback |
+| Diagnosis | Plain TypeScript, no model |
+| Tests | Vitest, offline |
 | Styling | Tailwind CSS v4 |
 
 ---
@@ -63,31 +75,39 @@ No keypair. No program ID. Grimoire reads transactions, it does not write them.
 ```
 src/
   app/
-    api/diagnose/route.ts  # SSE: fetch tx -> decode -> Claude explanation
-    page.tsx               # Single-page Tx Doctor UI
-    layout.tsx             # Metadata
+    api/diagnose/route.ts  # POST { signature } -> JSON diagnosis
+    page.tsx               # Doctor UI and failure census (server component)
   components/
-    Logo.tsx               # Grimoire logomark
+    Doctor.tsx             # Input, example chips, result card, copy support reply
+    CensusSection.tsx      # Census bars
   lib/
-    tx-decode.ts           # Deterministic decode engine (no LLM)
-    glossary-mcp.ts        # Local glossary lookup
-    glossary-data/         # 14 JSON term files
+    diagnose.ts            # Error to cause mapping
+    helius.ts              # Helius client with public RPC fallback (server only)
+    census.ts              # Counts causes over many transactions
+    fixtures.ts            # Loads recorded fixtures
+    support-reply.ts       # Template support answer
+data/                      # Census source data
+scripts/record-fixture.mjs # Records a failed transaction as a fixture
+test/fixtures/tx/          # Recorded failed mainnet transactions
 ```
 
 ---
 
 ## MCP angle
 
-The decode engine (`tx-decode.ts`) is designed to be callable as an MCP tool. An LLM agent running in a Solana dev context could call `diagnose_transaction(sig)` and get the structured decode result back as tool output, then reason over it. The same separation that makes the web UI reliable makes it a good MCP primitive.
+`diagnose(meta)` is a pure function with no network and no model, so it can back an MCP tool such as `diagnose_transaction(signature)` that returns the same structured result an agent can reason over.
 
 ---
 
-## Detected patterns
+## Detected causes
 
-- Anchor framework errors (codes 2000 to 3999) with name, number, message, and causing account
-- Program-specific custom errors (codes 6000+) with IDL lookup guidance
-- Compute budget exceeded / near-limit usage
-- Insufficient lamports and rent failures
-- Account already in use (PDA collision / re-init)
-- Blockhash not found (stale transaction)
-- Failing program ID extraction from logs
+- Slippage tolerance exceeded
+- Not enough tokens in the source account
+- Not enough SOL (fee, rent or transfer)
+- Ran out of compute units
+- Account not initialized
+- Wrong account passed (owner or type)
+- Missing required signature
+- Instruction rejected (stale SDK or IDL, wrong program id)
+- Anchor account constraint failed
+- Program-specific error with its code, when the program's own error list is not known
