@@ -32,6 +32,17 @@ describe("rules that keep false positives out", () => {
   });
 });
 
+test("compute or lamport messages from an earlier, successful program do not set the cause", () => {
+  const logs = [
+    "Program Other111111111111111111111111111111111111 invoke [1]",
+    "Program log: insufficient lamports, retrying with a smaller amount",
+    "Program log: exceeded CUs meter in a dry run",
+    "Program Other111111111111111111111111111111111111 success",
+    ...frame([], "custom program error: 0x1770"),
+  ];
+  expect(diagnose(meta({ InstructionError: [1, { Custom: 6000 }] }, logs)).cause).toBe("program_custom_error");
+});
+
 describe("builtin and framework errors", () => {
   test("builtin InsufficientFunds means not enough SOL", () => {
     const d = diagnose(meta({ InstructionError: [2, "InsufficientFunds"] }, frame([], "insufficient funds for instruction")));

@@ -78,10 +78,12 @@ node scripts/record-fixture.mjs <signature> <cause>
 src/
   app/
     api/diagnose/route.ts  # POST { signature } -> JSON diagnosis
+    api/autopsy/route.ts   # POST { address } -> failed transactions grouped by cause
     page.tsx               # Doctor UI and failure census (server component)
   components/
     Doctor.tsx             # Input, example chips, result card, copy support reply
     CensusSection.tsx      # Census bars
+    WalletAutopsy.tsx      # Address input and per-cause results
   lib/
     diagnose.ts            # Error to cause mapping
     helius.ts              # Helius client with public RPC fallback (server only)

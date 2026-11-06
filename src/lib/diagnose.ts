@@ -206,7 +206,8 @@ export function diagnose(meta: RawTxMeta): Diagnosis {
   const errText = JSON.stringify(meta.err);
   const proof = anchorLine ?? failedLine ?? errText;
 
-  const computeLine = logs.find((l) => RX_COMPUTE.test(l));
+  // Only the failing program's own lines count, so a message from an earlier, successful program cannot set the cause.
+  const computeLine = frame.find((l) => RX_COMPUTE.test(l));
   if (builtin === "ComputationalBudgetExceeded" || computeLine) {
     return result("compute_budget_exceeded", computeLine ?? errText);
   }
@@ -214,7 +215,7 @@ export function diagnose(meta: RawTxMeta): Diagnosis {
   if (errText.includes("InsufficientFundsForFee") || errText.includes("InsufficientFundsForRent")) {
     return result("insufficient_lamports", errText);
   }
-  const lamportsLine = logs.find((l) => RX_LAMPORTS.test(l));
+  const lamportsLine = frame.find((l) => RX_LAMPORTS.test(l));
   if (lamportsLine) return result("insufficient_lamports", lamportsLine);
 
   if (builtin && BUILTIN_CAUSES[builtin]) return result(BUILTIN_CAUSES[builtin], failedLine ?? errText);

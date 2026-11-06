@@ -50,8 +50,9 @@ export function CensusSection({ data, method }: { data: Census; method: CensusMe
       </ul>
 
       <p className="mt-6 text-[0.875rem] text-text-secondary leading-[1.6]">
-        The other {rest} are program-specific errors. Each one needs that program&apos;s own error list to decode, and
-        Helius Parsed Events decodes them.
+        The other {rest} are program-specific errors. Each one needs that program&apos;s own error list to decode. Helius
+        Parsed Events returns a decoded error when it has that program&apos;s error metadata. Grimoire shows that check
+        next to its own answer when a Helius key is set.
       </p>
       <p className="mt-3 text-[0.8125rem] text-text-tertiary leading-[1.6]">
         Method: recorded {method.recorded} from the public Solana RPC, on {method.programCount} busy DeFi programs, slots{" "}
