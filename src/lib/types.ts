@@ -1,3 +1,4 @@
+import type { Census } from "./census";
 import type { Cause, Diagnosis } from "./diagnose";
 import type { ParsedEventsDecodedError } from "./helius";
 
@@ -31,4 +32,18 @@ export interface ExampleChip {
   signature: string;
   cause: Cause;
   title: string;
+}
+
+/** Body of a successful POST /api/autopsy. */
+export interface AutopsyResponse {
+  address: string;
+  source: "helius" | "public-rpc";
+  /** Signatures looked at. With the public RPC this is the last `scanLimit` transactions. */
+  scanned: number;
+  scanLimit: number | null;
+  /** Most failed transactions read in full with the public RPC. */
+  fetchCap: number | null;
+  /** Failed transactions the RPC would not return, even after retries. */
+  skipped: number;
+  census: Census;
 }

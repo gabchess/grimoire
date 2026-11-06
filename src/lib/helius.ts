@@ -33,12 +33,17 @@ export interface ParsedEventsDecodedError {
 export interface ClientOptions {
   env?: Record<string, string | undefined>;
   fetch?: typeof fetch;
+  /** Waits between retries of an HTTP 429. Tests pass [] or short delays. */
+  retryDelaysMs?: number[];
+  /** Gap between calls in a public RPC scan, to stay under its rate limit. */
+  paceMs?: number;
 }
 
 const PUBLIC_RPC = "https://api.mainnet-beta.solana.com";
 const HELIUS_HOST = "https://mainnet.helius-rpc.com";
 export const PUBLIC_FAILED_SCAN_LIMIT = 100;
 export const PUBLIC_FAILED_FETCH_CAP = 25;
+const PUBLIC_PACE_MS = 400;
 
 export function dataSource(env: ClientOptions["env"] = process.env): TxSource {
   return env.HELIUS_API_KEY ? "helius" : "public-rpc";
@@ -49,15 +54,26 @@ function rpcUrl(env: NonNullable<ClientOptions["env"]>): string {
   return env.SOLANA_RPC_MAINNET ?? PUBLIC_RPC;
 }
 
-async function postJson<T>(url: string, body: unknown, f: typeof fetch, source: TxSource): Promise<T> {
-  const res = await f(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  // Error messages name the source, never the URL, so the key cannot leak into logs or the UI.
-  if (!res.ok) throw new Error(`${source} request failed with HTTP ${res.status}`);
-  return (await res.json()) as T;
+const RETRY_DELAYS_MS = [500, 1500];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function postJson<T>(url: string, body: unknown, f: typeof fetch, source: TxSource, delays = RETRY_DELAYS_MS): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    const res = await f(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    // The public RPC answers 429 when a client sends many calls in a row; back off and retry.
+    if (res.status === 429 && attempt < delays.length) {
+      await sleep(delays[attempt]);
+      continue;
+    }
+    // Error messages name the source, never the URL, so the key cannot leak into logs or the UI.
+    if (!res.ok) throw new Error(`${source} request failed with HTTP ${res.status}`);
+    return (await res.json()) as T;
+  }
 }
 
 interface RpcEnvelope<T> {
@@ -73,6 +89,7 @@ async function rpc<T>(method: string, params: unknown[], opts: ClientOptions): P
     { jsonrpc: "2.0", id: 1, method, params },
     opts.fetch ?? fetch,
     source,
+    opts.retryDelaysMs,
   );
   if (body.error) throw new Error(`${source} ${method} error ${body.error.code}: ${body.error.message}`);
   return body.result as T;
@@ -101,7 +118,7 @@ export interface FailedTx {
 export async function getFailedTransactions(
   address: string,
   opts: ClientOptions & { limit?: number } = {},
-): Promise<{ source: TxSource; txs: FailedTx[]; scanned: number }> {
+): Promise<{ source: TxSource; txs: FailedTx[]; scanned: number; skipped: number }> {
   const env = opts.env ?? process.env;
   const source = dataSource(env);
   const limit = opts.limit ?? PUBLIC_FAILED_FETCH_CAP;
@@ -125,7 +142,7 @@ export async function getFailedTransactions(
     const txs = (result?.data ?? [])
       .filter((tx) => tx?.meta?.err != null)
       .map((tx) => ({ signature: tx.transaction.signatures[0], tx }));
-    return { source, txs, scanned: txs.length };
+    return { source, txs, scanned: txs.length, skipped: 0 };
   }
 
   const sigs = await rpc<{ signature: string; err: unknown }[]>(
@@ -135,11 +152,15 @@ export async function getFailedTransactions(
   );
   const failed = sigs.filter((s) => s.err != null).slice(0, limit);
   const txs: FailedTx[] = [];
-  for (const { signature } of failed) {
-    const { tx } = await getTransaction(signature, opts);
+  let skipped = 0;
+  for (const [i, { signature }] of failed.entries()) {
+    if (i > 0) await sleep(opts.paceMs ?? PUBLIC_PACE_MS);
+    // One transaction that stays rate limited should not sink the whole scan; count it instead.
+    const tx = await getTransaction(signature, opts).then((r) => r.tx, () => null);
     if (tx?.meta?.err != null) txs.push({ signature, tx });
+    else skipped++;
   }
-  return { source, txs, scanned: sigs.length };
+  return { source, txs, scanned: sigs.length, skipped };
 }
 
 interface ParsedEventsItem {

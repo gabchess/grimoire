@@ -76,3 +76,29 @@ test("Parsed Events is skipped without a key and keyed by signature with one", a
   expect(calls[0].url).toContain("/v1/parsed-events/transactions");
   expect(out?.get("s")?.name).toBe("SlippageToleranceExceeded");
 });
+
+test("retries an HTTP 429 from the public RPC, then succeeds", async () => {
+  let n = 0;
+  const f = (async () => {
+    n++;
+    return n === 1
+      ? { ok: false, status: 429, json: async () => ({}) }
+      : { ok: true, status: 200, json: async () => ({ result: failedTx("s") }) };
+  }) as unknown as typeof fetch;
+  const out = await getTransaction("s", { env: {}, fetch: f, retryDelaysMs: [0] });
+  expect(n).toBe(2);
+  expect(out.tx?.transaction.signatures[0]).toBe("s");
+});
+
+test("a failed scan keeps the transactions it could read and counts the rest as skipped", async () => {
+  const f = (async (_u: string, init: { body: string }) => {
+    const { method, params } = JSON.parse(init.body);
+    if (method === "getSignaturesForAddress")
+      return { ok: true, status: 200, json: async () => ({ result: [{ signature: "a", err: {} }, { signature: "b", err: {} }] }) };
+    if (params[0] === "b") return { ok: false, status: 429, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => ({ result: failedTx("a") }) };
+  }) as unknown as typeof fetch;
+  const out = await getFailedTransactions("Addr", { env: {}, fetch: f, retryDelaysMs: [] });
+  expect(out.txs.map((t) => t.signature)).toEqual(["a"]);
+  expect(out.skipped).toBe(1);
+});

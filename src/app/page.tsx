@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { CensusSection } from "@/components/CensusSection";
 import { Doctor } from "@/components/Doctor";
 import { LogoLockup } from "@/components/Logo";
+import { WalletAutopsy } from "@/components/WalletAutopsy";
 import { census } from "@/lib/census";
 import { exampleChips } from "@/lib/fixtures";
 import type { RawTxMeta } from "@/lib/helius";
@@ -55,6 +56,8 @@ export default function Home() {
           </header>
 
           <Doctor examples={exampleChips()} />
+
+          <WalletAutopsy />
 
           <CensusSection data={data} method={method} />
         </div>
