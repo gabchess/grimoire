@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Check, Copy, ExternalLink, Search } from "lucide-react";
 import { formatSol, supportReply } from "@/lib/support-reply";
 import type { DiagnoseError, DiagnoseResponse, ExampleChip, Origin, ParsedEventsCheck } from "@/lib/types";
@@ -125,6 +125,13 @@ function ResultCard({ result }: { result: DiagnoseResponse }) {
   const [copied, setCopied] = useState(false);
   const evidenceIdx = result.logs.indexOf(d.evidence);
   const sig = result.signature;
+  const logBox = useRef<HTMLOListElement>(null);
+
+  useEffect(() => {
+    const box = logBox.current;
+    const line = box?.children[evidenceIdx] as HTMLElement | undefined;
+    if (box && line) box.scrollTop = line.offsetTop - box.offsetTop - box.clientHeight / 2;
+  }, [evidenceIdx]);
 
   async function copyReply() {
     await navigator.clipboard.writeText(supportReply(result));
@@ -171,13 +178,14 @@ function ResultCard({ result }: { result: DiagnoseResponse }) {
       </dl>
 
       <div className="mt-6">
-        <p className="text-[0.6875rem] uppercase tracking-[0.06em] text-text-tertiary">Program logs</p>
-        {evidenceIdx < 0 && (
-          <p className="mt-2 rounded-md border border-status-warning/50 bg-status-warning/10 px-3 py-2 font-mono text-[0.75rem] text-text-primary break-all">
-            {d.evidence}
-          </p>
-        )}
-        <ol className="mt-2 max-h-[360px] overflow-auto rounded-lg border border-border-subtle bg-void p-3 font-mono text-[0.71875rem] leading-[1.6]">
+        <p className="text-[0.6875rem] uppercase tracking-[0.06em] text-text-tertiary">The line that proves it</p>
+        <p className="mt-2 rounded-md border border-status-warning/50 bg-status-warning/10 px-3 py-2 font-mono text-[0.75rem] text-text-primary break-all">
+          {d.evidence}
+        </p>
+        <p className="mt-5 text-[0.6875rem] uppercase tracking-[0.06em] text-text-tertiary">
+          Program logs{evidenceIdx >= 0 ? ", proving line highlighted" : ""}
+        </p>
+        <ol ref={logBox} className="mt-2 max-h-[360px] overflow-auto rounded-lg border border-border-subtle bg-void p-3 font-mono text-[0.71875rem] leading-[1.6]">
           {result.logs.map((line, i) => (
             <li
               key={i}
