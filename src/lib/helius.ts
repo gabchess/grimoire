@@ -78,7 +78,7 @@ async function rpc<T>(method: string, params: unknown[], opts: ClientOptions): P
   return body.result as T;
 }
 
-const TX_CONFIG = { encoding: "json", maxSupportedTransactionVersion: 0, commitment: "finalized" } as const;
+const TX_CONFIG = { encoding: "json", maxSupportedTransactionVersion: 1, commitment: "finalized" } as const;
 
 export async function getTransaction(
   signature: string,
@@ -116,7 +116,7 @@ export async function getFailedTransactions(
           sortOrder: "desc",
           limit,
           encoding: "json",
-          maxSupportedTransactionVersion: 0,
+          maxSupportedTransactionVersion: 1,
           filters: { status: "failed" },
         },
       ],
