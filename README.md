@@ -13,6 +13,8 @@ Example: a pump.fun buy that logged `Error Code: BuySlippageBelowMinTokensOut. E
 3. **Diagnose.** `src/lib/diagnose.ts` maps `meta.err` and the program logs to one cause. Error codes are looked up by the failing program id, because the same code means different things in different programs.
 4. **Cross-check.** With a Helius key, the route also asks Helius Parsed Events for its decoded error and reports whether it agrees with our error code.
 
+Wallet autopsy: paste an address and `POST /api/autopsy` groups its recent failed transactions by cause, with the fees they burned. With `HELIUS_API_KEY` this is one `getTransactionsForAddress` call with `filters.status: "failed"`. Without a key it scans the last 100 signatures on the public RPC and reads at most 10 failed ones, to stay under the public rate limit.
+
 The page also shows a failure census: plain code run over 369 real failed mainnet transactions recorded on 2026-11-05 (`data/failed-tx-census-2026-11-05.json`). The census is computed on the server at build time.
 
 ---

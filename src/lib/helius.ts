@@ -42,8 +42,8 @@ export interface ClientOptions {
 const PUBLIC_RPC = "https://api.mainnet-beta.solana.com";
 const HELIUS_HOST = "https://mainnet.helius-rpc.com";
 export const PUBLIC_FAILED_SCAN_LIMIT = 100;
-export const PUBLIC_FAILED_FETCH_CAP = 25;
-const PUBLIC_PACE_MS = 400;
+export const PUBLIC_FAILED_FETCH_CAP = 10;
+const PUBLIC_PACE_MS = 300;
 
 export function dataSource(env: ClientOptions["env"] = process.env): TxSource {
   return env.HELIUS_API_KEY ? "helius" : "public-rpc";
@@ -54,7 +54,7 @@ function rpcUrl(env: NonNullable<ClientOptions["env"]>): string {
   return env.SOLANA_RPC_MAINNET ?? PUBLIC_RPC;
 }
 
-const RETRY_DELAYS_MS = [500, 1500];
+const RETRY_DELAYS_MS = [700];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

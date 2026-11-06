@@ -7,7 +7,7 @@ import { census } from "@/lib/census";
 import { getFailedTransactions, PUBLIC_FAILED_FETCH_CAP, PUBLIC_FAILED_SCAN_LIMIT } from "@/lib/helius";
 import type { AutopsyResponse, DiagnoseError } from "@/lib/types";
 
-// Each autopsy can make up to 26 RPC calls, so the per-IP limit is tighter than /api/diagnose.
+// Each autopsy can make up to 11 RPC calls plus retries, so the per-IP limit is tighter than /api/diagnose.
 const RATE_LIMIT_MAX = 3;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const hits = new Map<string, { n: number; reset: number }>();
