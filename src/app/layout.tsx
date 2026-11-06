@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Grimoire — Solana Transaction Doctor",
+  title: "Grimoire: Solana Transaction Doctor",
   description:
-    "Paste a failed Solana transaction signature. Grimoire decodes the error deterministically — Anchor codes, compute budget, rent, PDA collisions — then explains the root cause and fix in plain English.",
+    "Paste a failed Solana transaction signature. Plain code names the cause, the fix and the log line that proves it. Reads through Helius, or the public RPC without a key. No AI model.",
 };
 
 export default function RootLayout({
